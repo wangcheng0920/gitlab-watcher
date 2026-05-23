@@ -1,27 +1,35 @@
 const { cac } = require('cac');
 const inquirer = require('inquirer');
 
+const { createApp } = require('./index');
 const { createTaskFile } = require('./task-create');
 
 async function runCli({
   argv = process.argv,
   createTask = createTaskFile,
   prompt = createPrompt(),
+  startWatcher = () => createApp().start(),
   stdout = process.stdout,
 } = {}) {
   const cli = cac('gitlab-watcher');
   let commandResult = Promise.resolve();
 
-  cli.command('task [action] [tagName]', 'Manage watch tasks').action((action, tagName) => {
+  cli
+    .command('task [action] [tagName]', 'Manage watch tasks')
+    .option('--watch', 'Start listening now')
+    .option('--no-watch', 'Create the task without starting the watcher')
+    .action((action, tagName, options) => {
     commandResult = handleTaskCommand({
       action,
       tagName,
+      watch: resolveWatchOption(options.watch),
       createTask,
       prompt,
+      startWatcher,
       stdout,
     });
     return commandResult;
-  });
+    });
 
   cli.help();
   cli.parse(normalizeArgv(argv));
@@ -43,6 +51,12 @@ function createPrompt(inquirerModule = inquirer) {
       validate(value) {
         return value.trim() ? true : 'Tag is required.';
       },
+    },
+    {
+      type: 'confirm',
+      name: 'watch',
+      message: 'Start listening now?',
+      default: true,
     },
   ]);
 }
@@ -72,16 +86,55 @@ function normalizeArgv(argv) {
   ];
 }
 
-async function handleCreate({ tagName, createTask, prompt, stdout }) {
-  const nextTagName = tagName || (await prompt()).tagName;
-  const filePath = await createTask({ tagName: nextTagName });
+function resolveWatchOption(watch) {
+  if (typeof watch === 'boolean') {
+    return watch;
+  }
 
-  stdout.write(`Created task file: ${filePath}\n`);
+  return true;
 }
 
-async function handleTaskCommand({ action, tagName, createTask, prompt, stdout }) {
+async function handleCreate({
+  tagName,
+  watch,
+  createTask,
+  prompt,
+  startWatcher,
+  stdout,
+}) {
+  const answers = tagName
+    ? { tagName, watch: resolveWatchOption(watch) }
+    : {
+      watch: true,
+      ...(await prompt()),
+    };
+  const filePath = await createTask({ tagName: answers.tagName });
+
+  stdout.write(`Created task file: ${filePath}\n`);
+
+  if (answers.watch) {
+    await startWatcher();
+  }
+}
+
+async function handleTaskCommand({
+  action,
+  tagName,
+  watch,
+  createTask,
+  prompt,
+  startWatcher,
+  stdout,
+}) {
   if (action === 'create') {
-    await handleCreate({ tagName, createTask, prompt, stdout });
+    await handleCreate({
+      tagName,
+      watch,
+      createTask,
+      prompt,
+      startWatcher,
+      stdout,
+    });
     return;
   }
 

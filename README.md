@@ -25,6 +25,7 @@
 pnpm start
 pnpm task:create
 pnpm task:create -- release/1.2.3
+pnpm task:create -- release/1.2.3 --no-watch
 pnpm task:clear
 pnpm test
 pnpm test:notify
@@ -33,19 +34,22 @@ pnpm test:notify
 说明：
 
 1. `pnpm start`：启动当前 watcher 入口
-2. `pnpm task:create`：交互式创建一个新的监听任务，会提示输入 tag
-3. `pnpm task:create -- <tag>`：直接用指定 tag 创建任务，例如 `pnpm task:create -- release/1.2.3`
-4. `pnpm task:clear`：清空未完结任务，只删除 `tasks/pending/` 和 `tasks/processing/` 下的 `.md` 文件
-5. `pnpm test`：运行现有测试
-6. `pnpm test:notify`：手动触发一次本地提醒检查；在 macOS 下应弹出需要手动关闭的 alert
+2. `pnpm task:create`：交互式创建一个新的监听任务，会依次提示输入 tag 和是否立即开始监听
+3. `pnpm task:create -- <tag>`：直接用指定 tag 创建任务，并默认立即启动 watcher，例如 `pnpm task:create -- release/1.2.3`
+4. `pnpm task:create -- <tag> --no-watch`：只创建任务，不立即启动 watcher
+5. `pnpm task:clear`：清空未完结任务，只删除 `tasks/pending/` 和 `tasks/processing/` 下的 `.md` 文件
+6. `pnpm test`：运行现有测试
+7. `pnpm test:notify`：手动触发一次本地提醒检查；在 macOS 下应弹出需要手动关闭的 alert
 
 补充约定：
 
-1. 推荐通过 `pnpm task:create -- <tag>` 传入 tag，避免参数被 `pnpm` 本身解析
+1. 交互模式会先显示 `Input tag:`，再显示 `Start listening now?`
 2. tag 可以直接使用原始值，例如 `release/1.2.3`，不需要手动转换为文件名
 3. 创建成功后会输出对应任务文件路径
-4. 如果同一 tag 已存在于 `tasks/pending/`、`tasks/processing/` 或 `tasks/archive/*/`，命令会直接报错
-5. `pnpm task:clear` 不会删除 `tasks/archive/` 下的归档历史，也不会清理非 `.md` 文件
+4. 直接传参时默认立即开始监听；如只想创建任务可追加 `--no-watch`
+5. 推荐通过 `pnpm task:create -- <tag>` 传入 tag，避免参数被 `pnpm` 本身解析
+6. 如果同一 tag 已存在于 `tasks/pending/`、`tasks/processing/` 或 `tasks/archive/*/`，命令会直接报错
+7. `pnpm task:clear` 不会删除 `tasks/archive/` 下的归档历史，也不会清理非 `.md` 文件
 
 ## 任务列表
 
