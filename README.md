@@ -31,6 +31,20 @@ pnpm test
 pnpm test:notify
 ```
 
+## 典型使用流程
+
+```bash
+# 交互式创建任务，并按提示决定是否立即开始监听
+pnpm task:create
+
+# 直接创建任务并立即开始监听（默认行为）
+pnpm task:create -- release/1.2.3
+
+# 只创建任务，稍后再手动启动 watcher
+pnpm task:create -- release/1.2.3 --no-watch
+pnpm start
+```
+
 说明：
 
 1. `pnpm start`：启动当前 watcher 入口
@@ -57,7 +71,7 @@ pnpm test:notify
 - [x] 文件系统维护监听任务状态
 - [x] 设备适配器优先的通知层设计
 - [x] Mac 使用 `osascript` 的 `display alert` 实现阻塞式提醒
-- [x] 通过命令行创建监听任务，支持交互式输入和直接传参两种方式
+- [x] 通过命令行创建监听任务，支持交互式输入、直接传参与创建后立即开始监听
 - [x] 通过独立脚本清空未完结任务，保留 archive 历史
 - [ ] Windows 系统提醒适配
 - [ ] 多项目监听支持、项目配置管理
