@@ -52,7 +52,7 @@ test('createTaskRunner moves pending tasks into processing and prepends the late
   });
 
   try {
-    await runner.runAll();
+    const summary = await runner.runAll();
 
     assert.equal(fs.existsSync(pendingFile), false);
     assert.equal(fs.existsSync(path.join(tasksDirectory, 'processing', 'release-1.2.3.md')), true);
@@ -63,6 +63,11 @@ test('createTaskRunner moves pending tasks into processing and prepends the late
     assert.deepEqual(infoLogs, [
       'Query result: tag=release-1.2.3 status=running',
     ]);
+    assert.deepEqual(summary, {
+      pendingCount: 0,
+      processingCount: 1,
+      hasUnfinishedTasks: true,
+    });
   } finally {
     fs.rmSync(tempDirectory, { recursive: true, force: true });
   }
@@ -96,7 +101,7 @@ test('createTaskRunner appends query_error and keeps the task in processing when
   });
 
   try {
-    await runner.runAll();
+    const summary = await runner.runAll();
 
     assert.equal(fs.existsSync(processingFile), true);
     assert.equal(
@@ -106,6 +111,11 @@ test('createTaskRunner appends query_error and keeps the task in processing when
     assert.deepEqual(infoLogs, [
       'Query result: tag=release-1.2.3 status=query_error',
     ]);
+    assert.deepEqual(summary, {
+      pendingCount: 0,
+      processingCount: 1,
+      hasUnfinishedTasks: true,
+    });
   } finally {
     fs.rmSync(tempDirectory, { recursive: true, force: true });
   }
@@ -135,7 +145,7 @@ test('createTaskRunner notifies and archives successful tasks after prepending t
   });
 
   try {
-    await runner.runAll();
+    const summary = await runner.runAll();
 
     assert.deepEqual(notifications, [
       {
@@ -149,6 +159,111 @@ test('createTaskRunner notifies and archives successful tasks after prepending t
       fs.readFileSync(path.join(tasksDirectory, 'archive', 'success', 'release-1.2.3.md'), 'utf8'),
       '---\nqueryTime: 2026-05-21T14:30:00.000Z\nstatus: success\npipelineId: 102938\n\n---\nqueryTime: 2026-05-21T14:20:00.000Z\nstatus: running\npipelineId: 102938\n',
     );
+    assert.deepEqual(summary, {
+      pendingCount: 0,
+      processingCount: 0,
+      hasUnfinishedTasks: false,
+    });
+  } finally {
+    fs.rmSync(tempDirectory, { recursive: true, force: true });
+  }
+});
+
+test('createTaskRunner keeps terminal tasks in processing with notify_error when notification fails', async () => {
+  const tempDirectory = createTasksDirectory();
+  const tasksDirectory = path.join(tempDirectory, 'tasks');
+  const processingFile = path.join(tasksDirectory, 'processing', 'release-1.2.3.md');
+  const timestamps = [
+    '2026-05-21T14:30:00.000Z',
+    '2026-05-21T14:31:00.000Z',
+  ];
+
+  fs.writeFileSync(processingFile, '---\nqueryTime: 2026-05-21T14:20:00.000Z\nstatus: running\npipelineId: 102938\n');
+
+  const runner = createTaskRunner({
+    tasksDir: tasksDirectory,
+    request: async () => ({
+      status: 'success',
+      pipelineId: '102938',
+    }),
+    notify() {
+      throw new Error('notification failed');
+    },
+    now() {
+      return timestamps.shift();
+    },
+    logger: {
+      info() {},
+      error() {},
+    },
+  });
+
+  try {
+    const summary = await runner.runAll();
+
+    assert.equal(fs.existsSync(processingFile), true);
+    assert.equal(
+      fs.readFileSync(processingFile, 'utf8'),
+      '---\nqueryTime: 2026-05-21T14:31:00.000Z\nstatus: notify_error\nterminalStatus: success\npipelineId: 102938\n\n---\nqueryTime: 2026-05-21T14:30:00.000Z\nstatus: success\npipelineId: 102938\n\n---\nqueryTime: 2026-05-21T14:20:00.000Z\nstatus: running\npipelineId: 102938\n',
+    );
+    assert.deepEqual(summary, {
+      pendingCount: 0,
+      processingCount: 1,
+      hasUnfinishedTasks: true,
+    });
+  } finally {
+    fs.rmSync(tempDirectory, { recursive: true, force: true });
+  }
+});
+
+test('createTaskRunner retries notify_error from local state without querying GitLab again', async () => {
+  const tempDirectory = createTasksDirectory();
+  const tasksDirectory = path.join(tempDirectory, 'tasks');
+  const processingFile = path.join(tasksDirectory, 'processing', 'release-1.2.3.md');
+  const notifications = [];
+
+  fs.writeFileSync(
+    processingFile,
+    '---\nqueryTime: 2026-05-21T14:31:00.000Z\nstatus: notify_error\nterminalStatus: success\npipelineId: 102938\n\n---\nqueryTime: 2026-05-21T14:30:00.000Z\nstatus: success\npipelineId: 102938\n\n---\nqueryTime: 2026-05-21T14:20:00.000Z\nstatus: running\npipelineId: 102938\n',
+  );
+
+  const runner = createTaskRunner({
+    tasksDir: tasksDirectory,
+    request: async () => {
+      throw new Error('request should not be called during notify_error retry');
+    },
+    notify(payload) {
+      notifications.push(payload);
+    },
+    now() {
+      return '2026-05-21T14:35:00.000Z';
+    },
+    logger: {
+      info() {},
+      error() {},
+    },
+  });
+
+  try {
+    const summary = await runner.runAll();
+
+    assert.deepEqual(notifications, [
+      {
+        title: 'GitLab pipeline success',
+        message: 'Tag release-1.2.3 pipeline 102938 finished with status success.',
+      },
+    ]);
+    assert.equal(fs.existsSync(processingFile), false);
+    assert.equal(fs.existsSync(path.join(tasksDirectory, 'archive', 'success', 'release-1.2.3.md')), true);
+    assert.equal(
+      fs.readFileSync(path.join(tasksDirectory, 'archive', 'success', 'release-1.2.3.md'), 'utf8'),
+      '---\nqueryTime: 2026-05-21T14:35:00.000Z\nstatus: success\npipelineId: 102938\n\n---\nqueryTime: 2026-05-21T14:31:00.000Z\nstatus: notify_error\nterminalStatus: success\npipelineId: 102938\n\n---\nqueryTime: 2026-05-21T14:30:00.000Z\nstatus: success\npipelineId: 102938\n\n---\nqueryTime: 2026-05-21T14:20:00.000Z\nstatus: running\npipelineId: 102938\n',
+    );
+    assert.deepEqual(summary, {
+      pendingCount: 0,
+      processingCount: 0,
+      hasUnfinishedTasks: false,
+    });
   } finally {
     fs.rmSync(tempDirectory, { recursive: true, force: true });
   }

@@ -1,6 +1,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
+const NOTIFY_ERROR_STATUS = 'notify_error';
 const TERMINAL_STATUSES = new Set(['success', 'failed', 'canceled']);
 
 function createTaskRunner({
@@ -33,6 +34,8 @@ function createTaskRunner({
     for (const fileName of processingFiles) {
       await runTask(fileName, 'processing');
     }
+
+    return buildSummary();
   }
 
   async function runTask(fileName, sourceDirectory) {
@@ -51,6 +54,23 @@ function createTaskRunner({
 
         await fsModule.rename(currentPath, processingPath);
         currentPath = processingPath;
+      }
+
+      const latestRecord = await readLatestRecord(currentPath);
+
+      if (
+        latestRecord?.status === NOTIFY_ERROR_STATUS
+        && latestRecord.terminalStatus
+        && latestRecord.pipelineId
+      ) {
+        await retryNotification({
+          tagName,
+          fileName,
+          currentPath,
+          terminalStatus: latestRecord.terminalStatus,
+          pipelineId: latestRecord.pipelineId,
+        });
+        return;
       }
 
       let queryResult;
@@ -78,11 +98,22 @@ function createTaskRunner({
         return;
       }
 
-      notify(buildNotification({
-        tagName,
-        status: queryResult.status,
-        pipelineId: queryResult.pipelineId,
-      }));
+      try {
+        notify(buildNotification({
+          tagName,
+          status: queryResult.status,
+          pipelineId: queryResult.pipelineId,
+        }));
+      } catch (error) {
+        await prependRecord(currentPath, {
+          queryTime: now(),
+          status: NOTIFY_ERROR_STATUS,
+          terminalStatus: queryResult.status,
+          pipelineId: queryResult.pipelineId,
+        });
+        logger.error('Task notification failed.', error);
+        return;
+      }
 
       await fsModule.rename(
         currentPath,
@@ -93,9 +124,49 @@ function createTaskRunner({
     }
   }
 
+  async function retryNotification({
+    tagName,
+    fileName,
+    currentPath,
+    terminalStatus,
+    pipelineId,
+  }) {
+    try {
+      notify(buildNotification({
+        tagName,
+        status: terminalStatus,
+        pipelineId,
+      }));
+    } catch (error) {
+      await prependRecord(currentPath, {
+        queryTime: now(),
+        status: NOTIFY_ERROR_STATUS,
+        terminalStatus,
+        pipelineId,
+      });
+      logger.error('Task notification failed.', error);
+      return;
+    }
+
+    await prependRecord(currentPath, {
+      queryTime: now(),
+      status: terminalStatus,
+      pipelineId,
+    });
+
+    await fsModule.rename(
+      currentPath,
+      pathModule.join(tasksDir, 'archive', terminalStatus, fileName),
+    );
+  }
+
   async function prependRecord(filePath, record) {
     const existingContent = await readFileIfExists(filePath);
     let nextContent = `---\nqueryTime: ${record.queryTime}\nstatus: ${record.status}\n`;
+
+    if (record.terminalStatus) {
+      nextContent += `terminalStatus: ${record.terminalStatus}\n`;
+    }
 
     if (record.pipelineId) {
       nextContent += `pipelineId: ${record.pipelineId}\n`;
@@ -106,6 +177,12 @@ function createTaskRunner({
     }
 
     await fsModule.writeFile(filePath, nextContent, 'utf8');
+  }
+
+  async function readLatestRecord(filePath) {
+    const content = await readFileIfExists(filePath);
+
+    return parseLatestRecord(content);
   }
 
   async function readFileIfExists(filePath) {
@@ -145,6 +222,46 @@ function createTaskRunner({
       fsModule.mkdir(pathModule.join(tasksDir, 'archive', 'canceled'), { recursive: true }),
     ]);
   }
+
+  async function buildSummary() {
+    const [pendingFiles, processingFiles] = await Promise.all([
+      listMarkdownFiles('pending'),
+      listMarkdownFiles('processing'),
+    ]);
+
+    return {
+      pendingCount: pendingFiles.length,
+      processingCount: processingFiles.length,
+      hasUnfinishedTasks: pendingFiles.length > 0 || processingFiles.length > 0,
+    };
+  }
+}
+
+function parseLatestRecord(content) {
+  if (!content.startsWith('---\n')) {
+    return null;
+  }
+
+  const record = {};
+
+  for (const line of content.slice(4).split('\n')) {
+    if (!line) {
+      break;
+    }
+
+    const separatorIndex = line.indexOf(':');
+
+    if (separatorIndex === -1) {
+      continue;
+    }
+
+    const key = line.slice(0, separatorIndex).trim();
+    const value = line.slice(separatorIndex + 1).trim();
+
+    record[key] = value;
+  }
+
+  return Object.keys(record).length > 0 ? record : null;
 }
 
 function buildNotification({ tagName, status, pipelineId }) {

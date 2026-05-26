@@ -104,6 +104,28 @@ test('runCli starts the watcher by default when task create receives a tag direc
   assert.equal(promptCount, 0);
 });
 
+test('runCli reuses the running watcher and prints a message when task create starts no new watcher', async () => {
+  const writes = [];
+
+  assert.equal(typeof runCli, 'function');
+
+  await runCli({
+    argv: ['node', 'src/cli.js', 'task', 'create', 'release/1.2.3'],
+    createTask: async () => '/tmp/release%2F1.2.3.md',
+    startWatcher: async () => ({ status: 'already_running' }),
+    stdout: {
+      write(message) {
+        writes.push(message);
+      },
+    },
+  });
+
+  assert.deepEqual(writes, [
+    'Created task file: /tmp/release%2F1.2.3.md\n',
+    'task created, watcher already running\n',
+  ]);
+});
+
 test('runCli skips watcher startup when task create receives --no-watch', async () => {
   const started = [];
 

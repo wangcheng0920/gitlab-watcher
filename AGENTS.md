@@ -22,12 +22,13 @@
 当前已确认的技术方向：
 
 1. 通知层采用“设备适配器优先 + `node-notifier` 兜底”策略
-2. 轮询调度基于 cron 表达式
-3. cron 表达式作为用户可配置项提供
+2. 轮询调度基于单次 `setTimeout` 循环
+3. 轮询间隔通过 `pollIntervalMinutes` 表达，默认值为 3 分钟
 4. 当前先按“单实例监听指定项目下指定 tag 关联流水线”的方案描述
 5. Node.js 依赖管理统一使用 `pnpm`
 6. macOS 当前确认使用 `osascript` 的 `display alert` 作为阻塞式提醒方案
 7. 已支持通过独立脚本清理 `tasks/pending` 与 `tasks/processing` 中的未完结任务文件
+8. 当前 watcher 通过 `tasks/watcher.pid` 协调前台启动复用
 
 ## AI 协作约定
 
@@ -46,12 +47,14 @@
 2. 项目目标聚焦于 GitLab 打 tag 后相关流水线的完成提醒
 3. 当前能力仍按小步迭代补充，已包含任务创建、未完结任务清理和基础轮询处理能力
 4. 已确定通知层优先按设备适配，macOS 使用 `osascript display alert`
-5. 已确定轮询触发方式为基于 cron 表达式的定时查询
-6. cron 表达式由用户通过配置提供，而不是硬编码默认值
+5. 已确定轮询触发方式为“本轮结束后再按 `pollIntervalMinutes` 安排下一轮”
+6. 当前默认轮询间隔为 3 分钟，配置字段名为 `pollIntervalMinutes`
 7. 当前设计范围先聚焦单实例、单项目、指定 tag 关联流水线监听
 8. Node.js 包管理工具统一为 `pnpm`，后续安装依赖和执行脚本默认使用 `pnpm`
 9. 未适配设备暂由 `node-notifier` 作为通用兜底
 10. 未完结任务清理仅影响 `tasks/pending` 和 `tasks/processing` 下的 `.md` 文件，不影响 `tasks/archive`
+11. 当 `tasks/pending` 与 `tasks/processing` 都为空时，watcher 应自动退出
+12. 终态通知失败时任务保留在 `processing`，写入 `notify_error` 记录并在后续轮询中重试
 
 ## 设计文档索引
 
