@@ -1,11 +1,6 @@
 const DEFAULT_POLL_INTERVAL_MINUTES = 3;
-const DEFAULT_CRON_EXPRESSION = '*/3 * * * *';
 const MAX_TIMEOUT_MILLISECONDS = 2_147_483_647;
 const MILLISECONDS_PER_MINUTE = 60 * 1000;
-
-function resolveCronExpression(config = {}) {
-  return config.cronExpression || DEFAULT_CRON_EXPRESSION;
-}
 
 function resolvePollIntervalMinutes(config = {}) {
   const { pollIntervalMinutes } = config;
@@ -28,7 +23,5 @@ function resolvePollIntervalMinutes(config = {}) {
 
 module.exports = {
   DEFAULT_POLL_INTERVAL_MINUTES,
-  DEFAULT_CRON_EXPRESSION,
   resolvePollIntervalMinutes,
-  resolveCronExpression,
 };
