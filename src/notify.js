@@ -1,5 +1,5 @@
 const nodeNotifier = require('node-notifier');
-const { execFileSync } = require('node:child_process');
+const { spawn } = require('node:child_process');
 
 function createNotifier({
   notifier = nodeNotifier,
@@ -29,12 +29,18 @@ function escapeAppleScriptString(value) {
     .replaceAll('"', '\\"');
 }
 
-function runOsascript(script) {
-  execFileSync('osascript', ['-e', script], {
+function runOsascript(script, {
+  spawn: spawnProcess = spawn,
+} = {}) {
+  const child = spawnProcess('osascript', ['-e', script], {
+    detached: true,
     stdio: 'ignore',
   });
+
+  child.unref();
 }
 
 module.exports = {
   createNotifier,
+  runOsascript,
 };

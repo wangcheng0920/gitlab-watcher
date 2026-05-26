@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createNotifier } = require('../src/notify');
+const { createNotifier, runOsascript } = require('../src/notify');
 
 test('createNotifier uses osascript display alert on macOS', () => {
   const scripts = [];
@@ -79,4 +79,36 @@ test('createNotifier falls back to node-notifier outside macOS', () => {
     title: 'Pipeline finished',
     message: 'tag v1.0.0 completed successfully',
   });
+});
+
+test('runOsascript starts a detached osascript process so the watcher process is not blocked', () => {
+  let receivedCommand;
+  let receivedArgs;
+  let receivedOptions;
+  let unrefCalled = 0;
+
+  runOsascript('display alert "Pipeline finished" message "tag v1.0.0 completed successfully"', {
+    spawn(command, args, options) {
+      receivedCommand = command;
+      receivedArgs = args;
+      receivedOptions = options;
+
+      return {
+        unref() {
+          unrefCalled += 1;
+        },
+      };
+    },
+  });
+
+  assert.equal(receivedCommand, 'osascript');
+  assert.deepEqual(receivedArgs, [
+    '-e',
+    'display alert "Pipeline finished" message "tag v1.0.0 completed successfully"',
+  ]);
+  assert.deepEqual(receivedOptions, {
+    detached: true,
+    stdio: 'ignore',
+  });
+  assert.equal(unrefCalled, 1);
 });
