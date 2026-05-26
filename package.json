@@ -22,7 +22,6 @@
     "cac": "^6.7.14",
     "dotenv": "^17.4.2",
     "inquirer": "^12.10.0",
-    "node-cron": "^4.2.1",
     "node-notifier": "^10.0.1"
   }
 }

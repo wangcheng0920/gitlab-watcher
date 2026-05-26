@@ -6,7 +6,7 @@
 
 ## 当前已确认方案
 
-1. 轮询触发基于用户提供的 cron 表达式
+1. 轮询触发基于轮询间隔配置，默认每 3 分钟执行一次
 2. 当前按文件系统维护监听任务状态，不引入数据库
 3. 通知层采用“设备适配器优先 + `node-notifier` 兜底”策略
 4. macOS 当前优先使用 `osascript` 的 `display alert` 作为阻塞式提醒
@@ -54,6 +54,7 @@ pnpm start
 5. `pnpm task:clear`：清空未完结任务，只删除 `tasks/pending/` 和 `tasks/processing/` 下的 `.md` 文件
 6. `pnpm test`：运行现有测试
 7. `pnpm test:notify`：手动触发一次本地提醒检查；在 macOS 下应弹出需要手动关闭的 alert
+8. watcher 以前台方式运行；当本轮结束后 `tasks/pending/` 和 `tasks/processing/` 都为空时会自动退出
 
 补充约定：
 
@@ -64,14 +65,19 @@ pnpm start
 5. 推荐通过 `pnpm task:create -- <tag>` 传入 tag，避免参数被 `pnpm` 本身解析
 6. 如果同一 tag 已存在于 `tasks/pending/`、`tasks/processing/` 或 `tasks/archive/*/`，命令会直接报错
 7. `pnpm task:clear` 不会删除 `tasks/archive/` 下的归档历史，也不会清理非 `.md` 文件
+8. 如果创建任务时 watcher 已经在运行，CLI 会复用现有 watcher，并输出 `task created, watcher already running`
+9. watcher 运行期间会在 `tasks/watcher.pid` 写入当前进程号；正常退出或手动中断时会清理该文件
+10. 当前代码中的轮询间隔配置字段为 `pollIntervalMinutes`；未提供时默认值为 `3`
 
 ## 任务列表
 
-- [x] 基于 cron 表达式的轮询触发机制
+- [x] 基于轮询间隔的单次定时器轮询机制
 - [x] 文件系统维护监听任务状态
 - [x] 设备适配器优先的通知层设计
 - [x] Mac 使用 `osascript` 的 `display alert` 实现阻塞式提醒
 - [x] 通过命令行创建监听任务，支持交互式输入、直接传参与创建后立即开始监听
 - [x] 通过独立脚本清空未完结任务，保留 archive 历史
+- [x] 终态通知失败后记录 `notify_error` 并在后续轮询中重试
+- [x] 使用 `tasks/watcher.pid` 避免重复启动 watcher
 - [ ] Windows 系统提醒适配
 - [ ] 多项目监听支持、项目配置管理
