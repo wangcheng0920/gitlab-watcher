@@ -46,7 +46,7 @@ function createTaskRunner({
     activeTasks.add(fileName);
 
     try {
-      const tagName = fileName.replace(/\.md$/, '');
+      const tagName = decodeURIComponent(fileName.replace(/\.md$/, ''));
       let currentPath = pathModule.join(tasksDir, sourceDirectory, fileName);
 
       if (sourceDirectory === 'pending') {

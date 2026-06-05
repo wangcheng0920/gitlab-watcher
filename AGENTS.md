@@ -10,14 +10,13 @@
 
 ## 当前范围
 
-当前阶段仅建立 AI 可阅读的协作上下文，不实现任何业务代码、不接入任何真实服务、不创建可运行脚本。
+当前阶段已建立基础轮询、任务管理和通知能力，serve 模式也已就绪。后续将继续按小步迭代补充功能。
 
 后续任务会逐步补充以下方向：
 
-1. GitLab tag 相关事件或流水线触发链路梳理
-2. 流水线状态轮询或回调监听方案
-3. 构建完成后的本地消息通知方式
-4. 配置项、运行方式与异常处理策略
+1. 流水线状态轮询或回调监听方案优化
+2. 更多客户端接入场景（如 Web UI）
+3. 配置项、运行方式与异常处理策略优化
 
 当前已确认的技术方向：
 
@@ -27,8 +26,10 @@
 4. 当前先按“单实例监听指定项目下指定 tag 关联流水线”的方案描述
 5. Node.js 依赖管理统一使用 `pnpm`
 6. macOS 当前确认使用 `osascript` 的 `display alert` 作为阻塞式提醒方案
-7. 已支持通过独立脚本清理 `tasks/pending` 与 `tasks/processing` 中的未完结任务文件
-8. 当前 watcher 通过 `tasks/watcher.pid` 协调前台启动复用
+7. 已支持通过独立脚本或 API 清理 `tasks/pending` 与 `tasks/processing` 中的未完结任务文件
+8. 当前 watcher 通过 `tasks/watcher.pid` 协调启动复用（CLI 和 serve 互斥）
+9. 支持两种运行模式：间隔模式（`pnpm start`，空闲退出）和常驻 serve 模式（`pnpm serve`，永不退出 + REST API）
+10. serve 模式基于 Fastify 提供 REST API，默认监听 `127.0.0.1:3099`
 
 ## AI 协作约定
 
@@ -53,14 +54,15 @@
 8. Node.js 包管理工具统一为 `pnpm`，后续安装依赖和执行脚本默认使用 `pnpm`
 9. 未适配设备暂由 `node-notifier` 作为通用兜底
 10. 未完结任务清理仅影响 `tasks/pending` 和 `tasks/processing` 下的 `.md` 文件，不影响 `tasks/archive`
-11. 当 `tasks/pending` 与 `tasks/processing` 都为空时，watcher 应自动退出
+11. 间隔模式下当 `tasks/pending` 与 `tasks/processing` 都为空时，watcher 应自动退出；serve 模式下空闲时继续轮询
 12. 终态通知失败时任务保留在 `processing`，写入 `notify_error` 记录并在后续轮询中重试
 
 ## 设计文档索引
 
 1. `docs/plans/2026-05-20-gitlab-tag-watcher-design.md`：首版技术实现设计，包含方案选择、组件划分、数据流和异常处理边界
-2. `docs/rules/business-rules.md`：业务规则文档，定义后续 AI 编码时必须遵守的监听范围、查询规则、通知触发规则和重复通知约束
-3. `docs/specs/watch-task-state.md`：监听任务状态规格文档，定义任务字段、状态枚举、状态流转和示例对象
+2. `docs/plans/2026-06-05-serve-api-design.md`：serve 模式与 REST API 设计，包含架构定位、API 接口、模块变更
+3. `docs/rules/business-rules.md`：业务规则文档，定义后续 AI 编码时必须遵守的监听范围、查询规则、通知触发规则和重复通知约束
+4. `docs/specs/watch-task-state.md`：监听任务状态规格文档，定义任务字段、状态枚举、状态流转和示例对象
 
 ## 后续维护方式
 

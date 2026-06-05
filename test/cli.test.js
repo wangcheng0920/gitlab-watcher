@@ -112,7 +112,7 @@ test('runCli reuses the running watcher and prints a message when task create st
   await runCli({
     argv: ['node', 'src/cli.js', 'task', 'create', 'release/1.2.3'],
     createTask: async () => '/tmp/release%2F1.2.3.md',
-    startWatcher: async () => ({ status: 'already_running' }),
+    startWatcher: async () => ({ result: { status: 'already_running' } }),
     stdout: {
       write(message) {
         writes.push(message);

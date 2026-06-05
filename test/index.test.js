@@ -115,7 +115,7 @@ test('when no unfinished tasks remain, no timer is scheduled and startup exits c
   const result = await app.start();
 
   assert.equal(runAllCount, 1);
-  assert.equal(result, null);
+  assert.equal(result.result, null);
   assert.deepEqual(timers.scheduled, []);
   assert.deepEqual(fsDouble.unlinks, ['/virtual/tasks/watcher.pid']);
   assert.deepEqual(logger.infoMessages, [
@@ -238,7 +238,8 @@ test('createApp returns already_running when watcher pid points to a live proces
 
   const result = await app.start();
 
-  assert.deepEqual(result, { status: 'already_running' });
+  assert.equal(result.result.status, 'already_running');
+  assert.equal(typeof result.abort, 'function');
   assert.equal(runAllCount, 0);
   assert.deepEqual(logger.infoMessages, [
     'Watcher already running.',

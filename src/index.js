@@ -14,6 +14,9 @@ function createApp({
   request,
   notify,
   runner,
+  watch = false,
+  managePid = true,
+  manageSignals = true,
   logger = console,
   setTimeout: setTimeoutFn = global.setTimeout,
   clearTimeout: clearTimeoutFn = global.clearTimeout,
@@ -45,18 +48,21 @@ function createApp({
       const pollIntervalMinutes = resolvePollIntervalMinutes(config);
       const pollIntervalMilliseconds = pollIntervalMinutes * 60 * 1000;
 
-      if (!await acquireWatcherPid()) {
+      if (managePid && !await acquireWatcherPid()) {
         logger.info('Watcher already running.');
-        return { status: 'already_running' };
+        return { result: { status: 'already_running' }, abort: noop };
       }
 
-      registerSignalHandler();
+      if (manageSignals) {
+        registerSignalHandler();
+      }
+
       logger.info('Watcher started.');
 
       try {
         return await runCycle();
       } catch (error) {
-        await shutdown();
+        await doShutdown();
         throw error;
       }
 
@@ -64,12 +70,21 @@ function createApp({
         const summary = await taskRunner.runAll();
 
         if (!summary?.hasUnfinishedTasks) {
-          await shutdown();
-          logger.info('Watcher idle. Exiting.');
-          return null;
+          if (!watch) {
+            await doShutdown();
+            logger.info('Watcher idle. Exiting.');
+            return { result: null, abort: noop };
+          }
+
+          logger.info('Watcher idle. Waiting for new tasks.');
         }
 
-        return scheduleNextCycle();
+        scheduleNextCycle();
+
+        return {
+          result: timeoutHandle,
+          abort: doShutdown,
+        };
       }
 
       function scheduleNextCycle() {
@@ -87,8 +102,6 @@ function createApp({
         }, pollIntervalMilliseconds);
 
         logger.info(`Watcher rescheduled in ${pollIntervalMinutes} minute(s).`);
-
-        return timeoutHandle;
       }
 
       async function acquireWatcherPid() {
@@ -117,7 +130,7 @@ function createApp({
 
         signalHandler = async () => {
           try {
-            await shutdown();
+            await doShutdown();
             processModule.exit?.(0);
           } catch (error) {
             logger.error('Watcher shutdown failed.', error);
@@ -130,7 +143,7 @@ function createApp({
         }
       }
 
-      async function shutdown() {
+      async function doShutdown() {
         if (shutdownPromise) {
           return shutdownPromise;
         }
@@ -141,13 +154,17 @@ function createApp({
             timeoutHandle = null;
           }
 
-          unregisterSignalHandler();
+          if (manageSignals) {
+            unregisterSignalHandler();
+          }
 
-          try {
-            await fsModule.unlink(watcherPidPath);
-          } catch (error) {
-            if (error.code !== 'ENOENT') {
-              throw error;
+          if (managePid) {
+            try {
+              await fsModule.unlink(watcherPidPath);
+            } catch (error) {
+              if (error.code !== 'ENOENT') {
+                throw error;
+              }
             }
           }
         })();
@@ -169,6 +186,8 @@ function createApp({
     },
   };
 }
+
+function noop() {}
 
 function defaultIsProcessAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) {

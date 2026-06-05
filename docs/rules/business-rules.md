@@ -134,12 +134,21 @@ AI 不得因为“未来可能用到”而提前实现这些内容。
 
 ## 规则五：退出与重试规则
 
-当前 watcher 的运行语义还必须遵守以下规则：
+当前 watcher 支持两种运行模式，退出语义不同：
+
+### 间隔模式（CLI，`pnpm start`）
 
 1. 启动后应先立即执行一轮处理，再根据未完结任务决定是否安排下一轮
 2. 当 `tasks/pending/` 与 `tasks/processing/` 都没有未完结任务时，watcher 应自动退出
 3. 终态通知失败不表示任务完成，任务必须保留在 `processing/` 等待后续重试
 4. 对于最新记录为 `notify_error` 的任务，后续轮询应直接基于本地已确认终态重试通知，而不是重新查询 GitLab
+
+### 常驻模式（Serve，`pnpm serve`）
+
+1. 启动后应立即执行一轮处理，之后按 `pollIntervalMinutes` 持续轮询
+2. 当 `tasks/pending/` 与 `tasks/processing/` 都没有未完结任务时，watcher 不应退出，而是继续等待新任务
+3. 退出仅通过 SIGINT/SIGTERM 信号触发
+4. 终态通知失败与重试规则同间隔模式
 
 ## 文档维护规则
 

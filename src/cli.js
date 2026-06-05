@@ -115,7 +115,7 @@ async function handleCreate({
   if (answers.watch) {
     const watcherResult = await startWatcher();
 
-    if (watcherResult?.status === 'already_running') {
+    if (watcherResult?.result?.status === 'already_running') {
       stdout.write('task created, watcher already running\n');
     }
   }
