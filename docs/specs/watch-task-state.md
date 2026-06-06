@@ -67,7 +67,7 @@ tasks/
 2. `tasks/archive/` 下的已归档任务文件不参与清理。
 3. 非 `.md` 文件不参与清理。
 4. 清理入口：
-   - CLI：`pnpm task:clear`，底层执行 `node src/task-clear.js`
+   - CLI：`pnpm task:clear`，底层执行 `node bin/task-clear.js`
    - API：`DELETE /tasks`
 
 该能力的语义是“清空当前未完结监听任务”，不是“删除全部任务历史”。

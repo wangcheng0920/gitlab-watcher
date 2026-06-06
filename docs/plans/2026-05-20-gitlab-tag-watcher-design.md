@@ -165,7 +165,7 @@ status: not_found
 推荐入口形态如下：
 
 1. 在 `package.json` 中增加脚本，例如 `task:create`
-2. 脚本执行 `node src/cli.js task create`
+2. 脚本执行 `node bin/cli.js task create`
 3. CLI 内部使用 `cac` 解析命令，使用 `inquirer` 处理缺省参数时的交互输入
 
 建议用户使用方式如下：
@@ -194,8 +194,8 @@ pnpm task:create -- release/1.2.3
 当前入口约定如下：
 
 1. `package.json` 提供 `task:clear` 脚本。
-2. 脚本执行 `node src/task-clear.js`。
-3. `src/task-clear.js` 负责清理 `tasks/pending/` 与 `tasks/processing/` 下的 `.md` 文件，并输出清理数量。
+2. 脚本执行 `node bin/task-clear.js`。
+3. `src/task/clear.js` 负责清理 `tasks/pending/` 与 `tasks/processing/` 下的 `.md` 文件，并输出清理数量。
 4. `tasks/archive/` 下的历史归档文件不会被该命令删除。
 
 建议用户使用方式如下：

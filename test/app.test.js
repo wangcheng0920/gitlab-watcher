@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createApp } = require('../src/index');
+const { createApp } = require('../src/app');
 
 test('startup runs one polling cycle immediately', async () => {
   let runAllCount = 0;

@@ -1,8 +1,10 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
-const { createTaskFile } = require('./task-create');
-const { clearUnfinishedTasks } = require('./task-clear');
+const { parseLatestRecord } = require('../shared/parse-record');
+const { listMarkdownFiles } = require('../shared/fs');
+const { createTaskFile } = require('./create');
+const { clearUnfinishedTasks } = require('./clear');
 
 const STATUS_DIRECTORIES = ['pending', 'processing'];
 const ARCHIVE_STATUSES = ['success', 'failed', 'canceled'];
@@ -46,7 +48,7 @@ function createTaskManager({
   }
 
   async function listDirectoryTasks(directoryName) {
-    const fileNames = await readMarkdownFiles(pathModule.join(tasksDir, directoryName));
+    const fileNames = await listMarkdownFiles(pathModule.join(tasksDir, directoryName));
 
     return fileNames.map((fileName) => {
       const tagName = decodeURIComponent(fileName.replace(/\.md$/, ''));
@@ -62,7 +64,7 @@ function createTaskManager({
     const tasks = [];
 
     for (const archiveStatus of ARCHIVE_STATUSES) {
-      const fileNames = await readMarkdownFiles(pathModule.join(tasksDir, 'archive', archiveStatus));
+      const fileNames = await listMarkdownFiles(pathModule.join(tasksDir, 'archive', archiveStatus));
 
       for (const fileName of fileNames) {
         const tagName = decodeURIComponent(fileName.replace(/\.md$/, ''));
@@ -135,49 +137,6 @@ function createTaskManager({
   async function runClearUnfinishedTasks() {
     return clearUnfinishedTasks({ tasksDir, fsModule, pathModule });
   }
-
-  async function readMarkdownFiles(directoryPath) {
-    try {
-      const entries = await fsModule.readdir(directoryPath);
-
-      return entries
-        .filter((name) => name.endsWith('.md'))
-        .sort();
-    } catch (error) {
-      if (error.code === 'ENOENT') {
-        return [];
-      }
-
-      throw error;
-    }
-  }
-}
-
-function parseLatestRecord(content) {
-  if (!content.startsWith('---\n')) {
-    return null;
-  }
-
-  const record = {};
-
-  for (const line of content.slice(4).split('\n')) {
-    if (!line) {
-      break;
-    }
-
-    const separatorIndex = line.indexOf(':');
-
-    if (separatorIndex === -1) {
-      continue;
-    }
-
-    const key = line.slice(0, separatorIndex).trim();
-    const value = line.slice(separatorIndex + 1).trim();
-
-    record[key] = value;
-  }
-
-  return Object.keys(record).length > 0 ? record : null;
 }
 
 module.exports = {

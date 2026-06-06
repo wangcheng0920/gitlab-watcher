@@ -2,16 +2,16 @@
   "name": "gitlab-watcher",
   "version": "1.0.0",
   "description": "",
-  "main": "src/index.js",
+  "main": "src/app.js",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
-    "start": "node src/index.js",
-    "serve": "node src/daemon.js",
-    "task:create": "node src/cli.js task create",
-    "task:clear": "node src/task-clear.js",
-    "test": "node --test test/*.test.js",
+    "start": "node bin/watcher.js",
+    "serve": "node bin/serve.js",
+    "task:create": "node bin/cli.js task create",
+    "task:clear": "node bin/task-clear.js",
+    "test": "node --test test/**/*.test.js",
     "test:notify": "node test/manual-notify.js"
   },
   "keywords": [],

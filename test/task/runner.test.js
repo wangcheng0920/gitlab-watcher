@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { createTaskRunner } = require('../src/task-runner');
+const { createTaskRunner } = require('../../src/task/runner');
 
 function createTasksDirectory() {
   const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'gitlab-watcher-'));

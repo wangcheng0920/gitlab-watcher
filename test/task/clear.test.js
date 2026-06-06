@@ -5,13 +5,11 @@ const os = require('node:os');
 const path = require('node:path');
 
 let clearUnfinishedTasks;
-let runTaskClear;
 
 try {
-  ({ clearUnfinishedTasks, runTaskClear } = require('../src/task-clear'));
+  ({ clearUnfinishedTasks } = require('../../src/task/clear'));
 } catch {
   clearUnfinishedTasks = undefined;
-  runTaskClear = undefined;
 }
 
 function createTasksDirectory() {
@@ -53,21 +51,4 @@ test('clearUnfinishedTasks deletes markdown files from pending and processing on
   } finally {
     fs.rmSync(tempDirectory, { recursive: true, force: true });
   }
-});
-
-test('runTaskClear writes the cleared unfinished task count to stdout', async () => {
-  const writes = [];
-
-  assert.equal(typeof runTaskClear, 'function');
-
-  await runTaskClear({
-    clearTasks: async () => 2,
-    stdout: {
-      write(value) {
-        writes.push(value);
-      },
-    },
-  });
-
-  assert.deepEqual(writes, ['Cleared unfinished tasks: 2\n']);
 });

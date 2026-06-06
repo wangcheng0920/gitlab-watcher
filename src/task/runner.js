@@ -1,6 +1,9 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
+const { parseLatestRecord } = require('../shared/parse-record');
+const { listMarkdownFiles, readFileIfExists } = require('../shared/fs');
+
 const NOTIFY_ERROR_STATUS = 'notify_error';
 const TERMINAL_STATUSES = new Set(['success', 'failed', 'canceled']);
 
@@ -23,8 +26,8 @@ function createTaskRunner({
     await ensureTaskDirectories();
 
     const [pendingFiles, processingFiles] = await Promise.all([
-      listMarkdownFiles('pending'),
-      listMarkdownFiles('processing'),
+      listMarkdownFiles(pathModule.join(tasksDir, 'pending')),
+      listMarkdownFiles(pathModule.join(tasksDir, 'processing')),
     ]);
 
     for (const fileName of pendingFiles) {
@@ -185,34 +188,6 @@ function createTaskRunner({
     return parseLatestRecord(content);
   }
 
-  async function readFileIfExists(filePath) {
-    try {
-      return await fsModule.readFile(filePath, 'utf8');
-    } catch (error) {
-      if (error.code === 'ENOENT') {
-        return '';
-      }
-
-      throw error;
-    }
-  }
-
-  async function listMarkdownFiles(directoryName) {
-    try {
-      const directoryEntries = await fsModule.readdir(pathModule.join(tasksDir, directoryName));
-
-      return directoryEntries
-        .filter((fileName) => fileName.endsWith('.md'))
-        .sort();
-    } catch (error) {
-      if (error.code === 'ENOENT') {
-        return [];
-      }
-
-      throw error;
-    }
-  }
-
   async function ensureTaskDirectories() {
     await Promise.all([
       fsModule.mkdir(pathModule.join(tasksDir, 'pending'), { recursive: true }),
@@ -225,8 +200,8 @@ function createTaskRunner({
 
   async function buildSummary() {
     const [pendingFiles, processingFiles] = await Promise.all([
-      listMarkdownFiles('pending'),
-      listMarkdownFiles('processing'),
+      listMarkdownFiles(pathModule.join(tasksDir, 'pending')),
+      listMarkdownFiles(pathModule.join(tasksDir, 'processing')),
     ]);
 
     return {
@@ -235,33 +210,6 @@ function createTaskRunner({
       hasUnfinishedTasks: pendingFiles.length > 0 || processingFiles.length > 0,
     };
   }
-}
-
-function parseLatestRecord(content) {
-  if (!content.startsWith('---\n')) {
-    return null;
-  }
-
-  const record = {};
-
-  for (const line of content.slice(4).split('\n')) {
-    if (!line) {
-      break;
-    }
-
-    const separatorIndex = line.indexOf(':');
-
-    if (separatorIndex === -1) {
-      continue;
-    }
-
-    const key = line.slice(0, separatorIndex).trim();
-    const value = line.slice(separatorIndex + 1).trim();
-
-    record[key] = value;
-  }
-
-  return Object.keys(record).length > 0 ? record : null;
 }
 
 function buildNotification({ tagName, status, pipelineId }) {

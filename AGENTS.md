@@ -26,10 +26,44 @@
 4. 当前先按“单实例监听指定项目下指定 tag 关联流水线”的方案描述
 5. Node.js 依赖管理统一使用 `pnpm`
 6. macOS 当前确认使用 `osascript` 的 `display alert` 作为阻塞式提醒方案
-7. 已支持通过独立脚本或 API 清理 `tasks/pending` 与 `tasks/processing` 中的未完结任务文件
-8. 当前 watcher 通过 `tasks/watcher.pid` 协调启动复用（CLI 和 serve 互斥）
-9. 支持两种运行模式：间隔模式（`pnpm start`，空闲退出）和常驻 serve 模式（`pnpm serve`，永不退出 + REST API）
+ 7. 已支持通过独立脚本或 API 清理 `tasks/pending` 与 `tasks/processing` 中的未完结任务文件
+ 8. 当前 watcher 通过 `tasks/watcher.pid` 协调启动复用（CLI 和 serve 互斥）
+ 9. 支持两种运行模式：间隔模式（`pnpm start`，空闲退出）和常驻 serve 模式（`pnpm serve`，永不退出 + REST API）
 10. serve 模式基于 Fastify 提供 REST API，默认监听 `127.0.0.1:3099`
+11. 入口脚本统一位于 `bin/` 目录，源码逻辑位于 `src/`，两者职责分离
+
+## 代码结构
+
+```text
+bin/                          ← 纯入口脚本（薄包装，不含业务逻辑）
+  watcher.js                  ← pnpm start
+  serve.js                    ← pnpm serve
+  cli.js                      ← pnpm task:create
+  task-clear.js               ← pnpm task:clear
+
+src/                          ← 纯源码（可导出模块，无 require.main）
+  app.js                      ← 核心编排器 (createApp)
+  cli.js                      ← CLI 命令处理 (runCli)
+  daemon.js                   ← 常驻模式入口 (startDaemon)
+  expression.js               ← 轮询间隔解析
+  notify.js                   ← 通知适配器
+  request.js                  ← GitLab API 请求
+  task/
+    create.js                 ← 任务文件创建
+    clear.js                  ← 未完结任务清理
+    manager.js                ← 任务 CRUD（API 层用）
+    runner.js                 ← 轮询处理引擎
+  server/
+    index.js                  ← Fastify 服务工厂
+    routes/
+      health.js
+      task.js
+      tasks.js
+  shared/
+    parse-record.js           ← parseLatestRecord（去重后唯一实现）
+    process.js                ← isProcessAlive + readExistingPid（去重后唯一实现）
+    fs.js                     ← listMarkdownFiles + readFileIfExists（去重后唯一实现）
+```
 
 ## AI 协作约定
 
@@ -41,6 +75,7 @@
 4. 做设计或实现前，先说明假设、边界和依赖
 5. 若需求存在歧义，应先澄清再继续
 6. 除非任务明确要求，否则不要引入与当前目标无关的基础设施
+7. 每次代码变更完成后，必须同步更新受影响的文档，包括：本文件（AGENTS.md）、`docs/plans/`、`docs/rules/`、`docs/specs/` 中涉及变更模块、路径、架构或业务规则的部分。不需要等用户提醒
 
 ## 当前已知约束
 
@@ -72,5 +107,12 @@
 2. 当前范围是否扩大
 3. 是否新增技术约束或运行前提
 4. 是否已有明确的实现决策
+
+每次代码变更（包括新增、移动、删除、重构模块）完成后，必须同步更新受影响的文档：
+
+- `AGENTS.md`：代码结构图、当前范围、技术方向
+- `docs/plans/`：模块变更、文件路径、架构说明
+- `docs/rules/`：业务规则变更
+- `docs/specs/`：数据结构、状态定义、目录结构
 
 如果后续出现更细的模块说明、接口设计、运行说明或任务拆解，可以再新增独立文档，并在本文件中补充索引。

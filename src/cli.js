@@ -1,8 +1,8 @@
 const { cac } = require('cac');
 const inquirer = require('inquirer');
 
-const { createApp } = require('./index');
-const { createTaskFile } = require('./task-create');
+const { createApp } = require('./app');
+const { createTaskFile } = require('./task/create');
 
 async function runCli({
   argv = process.argv,
@@ -143,13 +143,6 @@ async function handleTaskCommand({
   }
 
   throw new Error(`Unsupported task action "${action}".`);
-}
-
-if (require.main === module) {
-  runCli().catch((error) => {
-    process.stderr.write(`${error.message}\n`);
-    process.exitCode = 1;
-  });
 }
 
 module.exports = {

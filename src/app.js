@@ -4,7 +4,8 @@ const path = require('node:path');
 const { resolvePollIntervalMinutes } = require('./expression');
 const { createRequestRunner } = require('./request');
 const { createNotifier } = require('./notify');
-const { createTaskRunner } = require('./task-runner');
+const { isProcessAlive: defaultIsProcessAlive } = require('./shared/process');
+const { createTaskRunner } = require('./task/runner');
 
 const WATCHER_PID_FILE_NAME = 'watcher.pid';
 const WATCHER_SIGNALS = ['SIGINT', 'SIGTERM'];
@@ -188,31 +189,6 @@ function createApp({
 }
 
 function noop() {}
-
-function defaultIsProcessAlive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) {
-    return false;
-  }
-
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    if (error.code === 'EPERM') {
-      return true;
-    }
-
-    if (error.code === 'ESRCH') {
-      return false;
-    }
-
-    throw error;
-  }
-}
-
-if (require.main === module) {
-  createApp().start();
-}
 
 module.exports = {
   createApp,

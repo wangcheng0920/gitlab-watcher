@@ -3,9 +3,10 @@ const path = require('node:path');
 
 require('dotenv').config({ quiet: true });
 
-const { createApp } = require('./index');
-const { createTaskManager } = require('./task-manager');
-const { createApiServer } = require('./api-server');
+const { createApp } = require('./app');
+const { createTaskManager } = require('./task/manager');
+const { createApiServer } = require('./server');
+const { isProcessAlive, readExistingPid } = require('./shared/process');
 
 const DEFAULT_PORT = 3099;
 
@@ -110,47 +111,6 @@ function createGracefulShutdown({
     logger.info('Shutdown complete.');
     processModule.exit(0);
   };
-}
-
-async function readExistingPid(pidFile, fsModule) {
-  try {
-    const content = await fsModule.readFile(pidFile, 'utf8');
-    return content.trim();
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return '';
-    }
-
-    throw error;
-  }
-}
-
-function isProcessAlive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) {
-    return false;
-  }
-
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    if (error.code === 'EPERM') {
-      return true;
-    }
-
-    if (error.code === 'ESRCH') {
-      return false;
-    }
-
-    throw error;
-  }
-}
-
-if (require.main === module) {
-  startDaemon().catch((error) => {
-    process.stderr.write(`${error.message}\n`);
-    process.exitCode = 1;
-  });
 }
 
 module.exports = {

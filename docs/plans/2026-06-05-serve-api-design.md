@@ -9,6 +9,7 @@
 ```
 CLI (pnpm task:create / start / clear)
   │
+  │  入口脚本位于 bin/，调用 src/ 纯逻辑模块
   │  直接操作文件系统，间隔运行，空闲自动退出
   ▼
 tasks/pending/  tasks/processing/  tasks/archive/
@@ -91,28 +92,29 @@ curl http://127.0.0.1:3099/health
 | 文件 | 职责 |
 |------|------|
 | `src/daemon.js` | serve 入口：加载配置 → PID 管理 → 启动 API server → 启动 watcher → 信号处理 |
-| `src/api-server.js` | 创建 Fastify 实例，decorate taskManager，注册 routes 插件 |
-| `src/routes/tasks.js` | `POST /tasks` / `GET /tasks` / `DELETE /tasks` |
-| `src/routes/task.js` | `GET /task` / `DELETE /task` |
-| `src/routes/health.js` | `GET /health` |
-| `src/task-manager.js` | 任务 CRUD 统一层：createTask / listTasks / getTask / deleteTask / clearUnfinishedTasks，内部复用 task-create.js 与 task-clear.js |
+| `src/server/index.js` | 创建 Fastify 实例，decorate taskManager，注册 routes 插件 |
+| `src/server/routes/tasks.js` | `POST /tasks` / `GET /tasks` / `DELETE /tasks` |
+| `src/server/routes/task.js` | `GET /task` / `DELETE /task` |
+| `src/server/routes/health.js` | `GET /health` |
+| `src/task/manager.js` | 任务 CRUD 统一层：createTask / listTasks / getTask / deleteTask / clearUnfinishedTasks，内部复用 task/create.js 与 task/clear.js |
 
 ### 修改文件
 
 | 文件 | 变更 |
 |------|------|
-| `src/task-runner.js:49` | bugfix: `tagName` 从文件名解析未做 `decodeURIComponent` |
-| `src/index.js` | `createApp` 增加 `watch` / `managePid` / `manageSignals` 参数；`start()` 返回 `{ result, abort }` |
+| `src/task/runner.js:49` | bugfix: `tagName` 从文件名解析未做 `decodeURIComponent` |
+| `src/app.js` | `createApp` 增加 `watch` / `managePid` / `manageSignals` 参数；`start()` 返回 `{ result, abort }` |
 | `src/cli.js` | 适配 `start()` 新返回格式 |
-| `package.json` | 新增 `fastify` 依赖，新增 `"serve": "node src/daemon.js"` 脚本 |
+| `bin/serve.js` | 入口脚本，调用 `startDaemon()` |
+| `package.json` | 新增 `fastify` 依赖，新增 `"serve": "node bin/serve.js"` 脚本 |
 
 ### 不变更文件
 
 | 文件 | 说明 |
 |------|------|
 | `src/cli.js` | 核心逻辑不变，仅适配返回值格式 |
-| `src/task-create.js` | 保留，被 task-manager 内部引用 |
-| `src/task-clear.js` | 保留，被 task-manager 内部引用 |
+| `src/task/create.js` | 保留，被 task-manager 内部引用 |
+| `src/task/clear.js` | 保留，被 task-manager 内部引用 |
 | `src/request.js` / `src/notify.js` / `src/expression.js` | 不动 |
 
 ### 测试清单
@@ -137,5 +139,5 @@ serve 模式共用同一机制，确保只有一个常驻服务运行。与 CLI 
 
 | 模式 | 入口 | 空闲行为 | PID 管理 |
 |------|------|----------|----------|
-| 间隔模式 | `pnpm start` | 无未完结任务时自动退出 | createApp 内部管理 |
+| 间隔模式 | `pnpm start` | 无未完结任务时自动退出 | createApp(app.js) 内部管理 |
 | 常驻模式 | `pnpm serve` | 空闲时继续轮询，等待新任务 | daemon.js 统一管理 |

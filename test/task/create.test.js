@@ -8,7 +8,7 @@ let createTaskFile;
 let mapTagToTaskFileName;
 
 try {
-  ({ createTaskFile, mapTagToTaskFileName } = require('../src/task-create'));
+  ({ createTaskFile, mapTagToTaskFileName } = require('../../src/task/create'));
 } catch {
   createTaskFile = undefined;
   mapTagToTaskFileName = undefined;
