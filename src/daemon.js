@@ -7,6 +7,7 @@ const { createApp } = require('./app');
 const { createTaskManager } = require('./task/manager');
 const { createApiServer } = require('./server');
 const { isProcessAlive, readExistingPid } = require('./shared/process');
+const { createFeishuNotifier } = require('./notify');
 
 const DEFAULT_PORT = 3099;
 
@@ -54,12 +55,23 @@ async function startDaemon({
   await server.listen({ port, host: '127.0.0.1' });
   logger.info(`API server listening on http://127.0.0.1:${port}`);
 
+  let notify;
+
+  if (processModule.env.FEISHU_WEBHOOK_URL) {
+    notify = createFeishuNotifier({
+      webhookUrl: processModule.env.FEISHU_WEBHOOK_URL,
+      secret: processModule.env.FEISHU_WEBHOOK_SECRET,
+    });
+    logger.info('Using Feishu webhook for notifications.');
+  }
+
   const app = createApp({
     config,
     watch: true,
     managePid: false,
     manageSignals: false,
     logger,
+    notify,
     setTimeout: setTimeoutFn,
     clearTimeout: clearTimeoutFn,
   });

@@ -101,15 +101,18 @@ function createTaskRunner({
         return;
       }
 
+      const finishedAt = now();
+
       try {
-        notify(buildNotification({
+        await notify(buildNotification({
           tagName,
           status: queryResult.status,
           pipelineId: queryResult.pipelineId,
+          finishedAt,
         }));
       } catch (error) {
         await prependRecord(currentPath, {
-          queryTime: now(),
+          queryTime: finishedAt,
           status: NOTIFY_ERROR_STATUS,
           terminalStatus: queryResult.status,
           pipelineId: queryResult.pipelineId,
@@ -134,15 +137,18 @@ function createTaskRunner({
     terminalStatus,
     pipelineId,
   }) {
+    const finishedAt = now();
+
     try {
-      notify(buildNotification({
+      await notify(buildNotification({
         tagName,
         status: terminalStatus,
         pipelineId,
+        finishedAt,
       }));
     } catch (error) {
       await prependRecord(currentPath, {
-        queryTime: now(),
+        queryTime: finishedAt,
         status: NOTIFY_ERROR_STATUS,
         terminalStatus,
         pipelineId,
@@ -152,7 +158,7 @@ function createTaskRunner({
     }
 
     await prependRecord(currentPath, {
-      queryTime: now(),
+      queryTime: finishedAt,
       status: terminalStatus,
       pipelineId,
     });
@@ -212,10 +218,14 @@ function createTaskRunner({
   }
 }
 
-function buildNotification({ tagName, status, pipelineId }) {
+function buildNotification({ tagName, status, pipelineId, finishedAt }) {
   return {
     title: `GitLab pipeline ${status}`,
     message: `Tag ${tagName} pipeline ${pipelineId} finished with status ${status}.`,
+    tagName,
+    status,
+    pipelineId,
+    finishedAt,
   };
 }
 

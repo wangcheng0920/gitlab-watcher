@@ -11,8 +11,9 @@
     "serve": "node bin/serve.js",
     "task:create": "node bin/cli.js task create",
     "task:clear": "node bin/task-clear.js",
-    "test": "node --test test/**/*.test.js",
-    "test:notify": "node test/manual-notify.js"
+    "test": "node --test test/*.test.js test/**/*.test.js",
+    "test:notify": "node test/manual-notify.js",
+    "test:feishu": "node test/manual-feishu.js"
   },
   "keywords": [],
   "author": "",

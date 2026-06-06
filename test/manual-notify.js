@@ -1,4 +1,4 @@
-const { createNotifier } = require('../src/notify');
+const { createNotifier } = require('../src/notify/platform');
 
 const DEFAULT_MANUAL_NOTIFICATION = {
   title: 'GitLab Watcher Alert Test',

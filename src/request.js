@@ -5,14 +5,14 @@ dotenv.config({ quiet: true });
 
 function createRequestRunner({
   client = axios,
-  baseUrl = process.env.BASE_URL,
-  projectId = process.env.PROJECT_ID,
+  baseUrl = process.env.GITLAB_BASE_URL,
+  projectId = process.env.GITLAB_PROJECT_ID,
 } = {}) {
   return async function runRequest({ tagName }) {
-    const privateToken = process.env.PRIVATE_TOKEN;
+    const privateToken = process.env.GITLAB_PRIVATE_TOKEN;
 
     if (!privateToken) {
-      throw new Error('Missing PRIVATE_TOKEN in environment.');
+      throw new Error('Missing GITLAB_PRIVATE_TOKEN in environment.');
     }
 
     const response = await client({

@@ -4,7 +4,7 @@
 
 **Goal:** Build a runnable startup entry that schedules work with a cron expression, defaulting to every three minutes, while keeping expression, request, and notification logic in separate modules.
 
-**Architecture:** Keep runtime wiring in `src/index.js` and isolate the three requested responsibilities into `src/expression.js`, `src/request.js`, and `src/notify.js`. Use dependency injection in tests so the startup flow can be verified without real network or desktop side effects.
+**Architecture:** Keep runtime wiring in `src/index.js` and isolate the three requested responsibilities into `src/expression.js`, `src/request.js`, and `src/notify/platform.js`. Use dependency injection in tests so the startup flow can be verified without real network or desktop side effects.
 
 **Tech Stack:** Node.js CommonJS, `node:test`, `node-cron`, `axios`, `node-notifier`
 
@@ -31,14 +31,14 @@ Add tests that require:
 **Step 2: Run test to verify it fails**
 
 Run: `pnpm test`
-Expected: FAIL because `src/expression.js`, `src/request.js`, `src/notify.js`, and `src/index.js` do not exist yet.
+Expected: FAIL because `src/expression.js`, `src/request.js`, `src/notify/platform.js`, and `src/index.js` do not exist yet.
 
 ### Task 2: Implement the minimal runtime modules
 
 **Files:**
 - Create: `src/expression.js`
 - Create: `src/request.js`
-- Create: `src/notify.js`
+- Create: `src/notify/platform.js`
 - Create: `src/index.js`
 
 **Step 1: Write minimal implementation**

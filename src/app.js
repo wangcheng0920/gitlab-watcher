@@ -3,7 +3,7 @@ const path = require('node:path');
 
 const { resolvePollIntervalMinutes } = require('./expression');
 const { createRequestRunner } = require('./request');
-const { createNotifier } = require('./notify');
+const { createNotifier } = require('./notify/platform');
 const { isProcessAlive: defaultIsProcessAlive } = require('./shared/process');
 const { createTaskRunner } = require('./task/runner');
 

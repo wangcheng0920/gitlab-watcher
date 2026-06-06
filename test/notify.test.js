@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createNotifier, runOsascript } = require('../src/notify');
+const { createNotifier, runOsascript } = require('../src/notify/platform');
 
 test('createNotifier uses osascript display alert on macOS', () => {
   const scripts = [];

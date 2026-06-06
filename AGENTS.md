@@ -20,7 +20,8 @@
 
 当前已确认的技术方向：
 
-1. 通知层采用“设备适配器优先 + `node-notifier` 兜底”策略
+1. 通知层采用"设备适配器 + `node-notifier` 兜底"策略（CLI 模式）
+2. serve 模式支持通过 `FEISHU_WEBHOOK_URL` 环境变量切换为飞书自定义机器人通知
 2. 轮询调度基于单次 `setTimeout` 循环
 3. 轮询间隔通过 `pollIntervalMinutes` 表达，默认值为 3 分钟
 4. 当前先按“单实例监听指定项目下指定 tag 关联流水线”的方案描述
@@ -50,7 +51,10 @@ src/                          ← 纯源码（可导出模块，无 require.main
   cli.js                      ← CLI 命令处理 (runCli)
   daemon.js                   ← 常驻模式入口 (startDaemon)
   expression.js               ← 轮询间隔解析
-  notify.js                   ← 通知适配器
+  notify/
+    index.js                  ← 统一入口，导出所有适配器
+    platform.js               ← 平台通知适配器 (osascript / node-notifier)
+    feishu.js                 ← 飞书通知适配器 (webhook 卡片消息)
   request.js                  ← GitLab API 请求
   task/
     create.js                 ← 任务文件创建
@@ -73,6 +77,7 @@ src/                          ← 纯源码（可导出模块，无 require.main
 Dockerfile                    ← 容器镜像定义
 docker-compose.yml            ← compose 启动配置
 .dockerignore                 ← 构建排除文件
+.env.example                  ← 环境变量模板，新增变量时需同步更新
 
 ## AI 协作约定
 
@@ -101,6 +106,8 @@ docker-compose.yml            ← compose 启动配置
 11. 间隔模式下当 `tasks/pending` 与 `tasks/processing` 都为空时，watcher 应自动退出；serve 模式下空闲时继续轮询
 12. 终态通知失败时任务保留在 `processing`，写入 `notify_error` 记录并在后续轮询中重试
 13. Docker 容器内无桌面环境，通知层（`osascript` / `node-notifier`）在容器中不可用；Docker 部署仅提供 REST API 任务管理能力
+14. serve 模式下可通过 `FEISHU_WEBHOOK_URL` 环境变量切换为飞书群聊自定义机器人通知，同一时间仅一个通知适配器生效
+15. 环境变量通过 `.env` 文件管理，新增变量时需同步更新 `.env.example` 模板文件
 
 ## 设计文档索引
 

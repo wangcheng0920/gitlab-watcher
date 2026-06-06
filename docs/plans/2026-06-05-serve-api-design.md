@@ -28,10 +28,14 @@ CLI 与 serve 完全隔离，各自独立运行，互不通信。两套配置各
 serve 通过 `.env` 配置：
 
 ```
-PORT=3099  # 服务端口，默认 3099
+PORT=3099                    # 服务端口，默认 3099
+FEISHU_WEBHOOK_URL=...       # 可选，飞书自定义机器人 webhook 地址
+FEISHU_WEBHOOK_SECRET=...    # 可选，飞书机器人签名校验密钥
 ```
 
-其余配置（`BASE_URL`、`PROJECT_ID`、`PRIVATE_TOKEN`、`pollIntervalMinutes`）沿用现有 `.env` 字段。
+其余配置（`GITLAB_BASE_URL`、`GITLAB_PROJECT_ID`、`GITLAB_PRIVATE_TOKEN`、`pollIntervalMinutes`）沿用现有 `.env` 字段。
+
+> 注意：新增环境变量后需同步更新 `.env.example` 模板文件。
 
 ## API 设计
 
@@ -97,12 +101,15 @@ curl http://127.0.0.1:3099/health
 | `src/server/routes/task.js` | `GET /task` / `DELETE /task` |
 | `src/server/routes/health.js` | `GET /health` |
 | `src/task/manager.js` | 任务 CRUD 统一层：createTask / listTasks / getTask / deleteTask / clearUnfinishedTasks，内部复用 task/create.js 与 task/clear.js |
+| `src/notify/feishu.js` | 飞书通知适配器：卡片消息构建 + 本地时区时间格式化 + webhook POST + 签名校验（可选） |
 
 ### 修改文件
 
 | 文件 | 变更 |
 |------|------|
 | `src/task/runner.js:49` | bugfix: `tagName` 从文件名解析未做 `decodeURIComponent` |
+| `src/task/runner.js` | `notify()` 调用增加 `await`，`buildNotification` 增加 `tagName`/`status`/`pipelineId`/`finishedAt` 字段 |
+| `src/daemon.js` | 根据 `FEISHU_WEBHOOK_URL` 注入飞书 notifier |
 | `src/app.js` | `createApp` 增加 `watch` / `managePid` / `manageSignals` 参数；`start()` 返回 `{ result, abort }` |
 | `src/cli.js` | 适配 `start()` 新返回格式 |
 | `bin/serve.js` | 入口脚本，调用 `startDaemon()` |
@@ -115,7 +122,7 @@ curl http://127.0.0.1:3099/health
 | `src/cli.js` | 核心逻辑不变，仅适配返回值格式 |
 | `src/task/create.js` | 保留，被 task-manager 内部引用 |
 | `src/task/clear.js` | 保留，被 task-manager 内部引用 |
-| `src/request.js` / `src/notify.js` / `src/expression.js` | 不动 |
+| `src/request.js` / `src/notify/platform.js` / `src/expression.js` | 不动 |
 
 ### 测试清单
 
@@ -124,6 +131,8 @@ curl http://127.0.0.1:3099/health
 | `test/task-manager.test.js` (12 tests) | createTask / listTasks / getTask / deleteTask / clearUnfinishedTasks |
 | `test/api-server.test.js` (11 tests) | 所有 6 个路由 + 错误状态码 |
 | `test/daemon.test.js` (3 tests) | PID 冲突 / 启动写 PID / 优雅关闭 |
+| `test/notify/feishu.test.js` (11 tests) | 飞书卡片构建 / 时区格式化 / 签名计算 / webhook POST / 错误处理 |
+| `test/manual-feishu.test.js` (2 tests) | 飞书手动通知测试（serve 模式真实推送验证） |
 
 ## PID 文件说明
 
@@ -159,4 +168,4 @@ docker compose up -d
 
 配置通过 `.env` 文件注入，`tasks/` 目录挂载为 volume 保存任务状态。
 
-**限制**：Docker 容器内无桌面环境，`osascript` 和 `node-notifier` 在容器中不可用。Docker 部署仅提供 REST API 任务管理能力，不产生本地桌面通知。需要通知能力请使用本地 `pnpm serve` 方式。
+**限制**：Docker 容器内无桌面环境，`osascript` 和 `node-notifier` 在容器中不可用。但可通过配置 `FEISHU_WEBHOOK_URL` 启用飞书通知，实现容器环境下的流水线完成提醒。

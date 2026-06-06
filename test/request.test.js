@@ -5,8 +5,8 @@ const { createRequestRunner } = require('../src/request');
 
 test('createRequestRunner adds PRIVATE-TOKEN from env and resolves running pipeline data for a tag', async () => {
   let receivedOptions;
-  const originalToken = process.env.PRIVATE_TOKEN;
-  process.env.PRIVATE_TOKEN = 'secret-token';
+  const originalToken = process.env.GITLAB_PRIVATE_TOKEN;
+  process.env.GITLAB_PRIVATE_TOKEN = 'secret-token';
 
   const client = async (options) => {
     receivedOptions = options;
@@ -45,13 +45,13 @@ test('createRequestRunner adds PRIVATE-TOKEN from env and resolves running pipel
       pipelineId: '42',
     });
   } finally {
-    process.env.PRIVATE_TOKEN = originalToken;
+    process.env.GITLAB_PRIVATE_TOKEN = originalToken;
   }
 });
 
 test('createRequestRunner returns not_found when GitLab does not return a pipeline for the tag', async () => {
-  const originalToken = process.env.PRIVATE_TOKEN;
-  process.env.PRIVATE_TOKEN = 'secret-token';
+  const originalToken = process.env.GITLAB_PRIVATE_TOKEN;
+  process.env.GITLAB_PRIVATE_TOKEN = 'secret-token';
 
   const runRequest = createRequestRunner({
     client: async () => ({ data: [] }),
@@ -66,13 +66,13 @@ test('createRequestRunner returns not_found when GitLab does not return a pipeli
       status: 'not_found',
     });
   } finally {
-    process.env.PRIVATE_TOKEN = originalToken;
+    process.env.GITLAB_PRIVATE_TOKEN = originalToken;
   }
 });
 
-test('createRequestRunner throws when PRIVATE_TOKEN is missing', async () => {
+test('createRequestRunner throws when GITLAB_PRIVATE_TOKEN is missing', async () => {
   const originalToken = process.env.PRIVATE_TOKEN;
-  delete process.env.PRIVATE_TOKEN;
+  delete process.env.GITLAB_PRIVATE_TOKEN;
 
   const runRequest = createRequestRunner({
     client: async () => {
@@ -82,9 +82,9 @@ test('createRequestRunner throws when PRIVATE_TOKEN is missing', async () => {
 
   try {
     await assert.rejects(runRequest({ tagName: 'v1.0.0' }), {
-      message: 'Missing PRIVATE_TOKEN in environment.',
+      message: 'Missing GITLAB_PRIVATE_TOKEN in environment.',
     });
   } finally {
-    process.env.PRIVATE_TOKEN = originalToken;
+    process.env.GITLAB_PRIVATE_TOKEN = originalToken;
   }
 });

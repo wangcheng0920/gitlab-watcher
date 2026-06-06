@@ -151,6 +151,10 @@ test('createTaskRunner notifies and archives successful tasks after prepending t
       {
         title: 'GitLab pipeline success',
         message: 'Tag release-1.2.3 pipeline 102938 finished with status success.',
+        tagName: 'release-1.2.3',
+        status: 'success',
+        pipelineId: '102938',
+        finishedAt: '2026-05-21T14:30:00.000Z',
       },
     ]);
     assert.equal(fs.existsSync(processingFile), false);
@@ -251,6 +255,10 @@ test('createTaskRunner retries notify_error from local state without querying Gi
       {
         title: 'GitLab pipeline success',
         message: 'Tag release-1.2.3 pipeline 102938 finished with status success.',
+        tagName: 'release-1.2.3',
+        status: 'success',
+        pipelineId: '102938',
+        finishedAt: '2026-05-21T14:35:00.000Z',
       },
     ]);
     assert.equal(fs.existsSync(processingFile), false);

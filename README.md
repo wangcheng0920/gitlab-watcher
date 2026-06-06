@@ -8,7 +8,7 @@
 
 1. 轮询触发基于轮询间隔配置，默认每 3 分钟执行一次
 2. 当前按文件系统维护监听任务状态，不引入数据库
-3. 通知层采用“设备适配器优先 + `node-notifier` 兜底”策略
+3. 通知层：CLI 模式采用"设备适配器优先 + `node-notifier` 兜底"策略；serve 模式支持通过 `FEISHU_WEBHOOK_URL` 切换为飞书自定义机器人通知
 4. macOS 当前优先使用 `osascript` 的 `display alert` 作为阻塞式提醒
 5. Node.js 依赖管理统一使用 `pnpm`
 6. 支持两种运行模式：间隔模式（`pnpm start`，空闲退出）和常驻模式（`pnpm serve`，永不退出 + REST API）
@@ -33,6 +33,7 @@ pnpm task:create -- release/1.2.3 --no-watch   # 只创建任务
 pnpm task:clear                # 清空未完结任务
 pnpm test                      # 运行测试
 pnpm test:notify               # 手动触发本地提醒检查
+pnpm test:feishu               # 手动触发飞书通知检查（需配置 FEISHU_WEBHOOK_URL）
 ```
 
 ### Serve 模式（常驻服务）
@@ -58,6 +59,21 @@ curl -X POST http://127.0.0.1:3099/tasks -H 'Content-Type: application/json' -d 
 curl 'http://127.0.0.1:3099/task?tag=release/1.2.3'
 curl http://127.0.0.1:3099/health
 ```
+
+## 配置
+
+通过 `.env` 文件配置（参考 `.env.example`）：
+
+| 变量 | 必填 | 说明 |
+|------|------|------|
+| `GITLAB_PRIVATE_TOKEN` | 是 | GitLab 个人访问令牌 |
+| `GITLAB_BASE_URL` | 是 | GitLab API 地址 |
+| `GITLAB_PROJECT_ID` | 是 | GitLab 项目 ID |
+| `PORT` | 否 | serve 模式 HTTP 端口，默认 3099 |
+| `FEISHU_WEBHOOK_URL` | 否 | 飞书自定义机器人 webhook 地址，配置后 serve 模式使用飞书通知 |
+| `FEISHU_WEBHOOK_SECRET` | 否 | 飞书机器人签名校验密钥（选填） |
+
+> 新增环境变量后需同步更新 `.env.example` 模板文件。
 
 ## 运行模式
 
@@ -117,6 +133,7 @@ pnpm start
 - [x] 终态通知失败后记录 `notify_error` 并在后续轮询中重试
 - [x] 使用 `tasks/watcher.pid` 避免重复启动 watcher
 - [x] 常驻服务模式 + REST API（`pnpm serve`）
+- [x] serve 模式飞书自定义机器人通知（卡片消息 + 本地时区）
 - [x] tag 文件名编码/解码一致性修复
 - [ ] Windows 系统提醒适配
 - [ ] 多项目监听支持、项目配置管理
