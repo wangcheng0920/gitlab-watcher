@@ -141,3 +141,22 @@ serve 模式共用同一机制，确保只有一个常驻服务运行。与 CLI 
 |------|------|----------|----------|
 | 间隔模式 | `pnpm start` | 无未完结任务时自动退出 | createApp(app.js) 内部管理 |
 | 常驻模式 | `pnpm serve` | 空闲时继续轮询，等待新任务 | daemon.js 统一管理 |
+
+## Docker 部署
+
+serve 模式支持通过 Docker 部署：
+
+```bash
+# 首次：构建镜像并启动
+./bin/docker-up.sh
+
+# 后续：直接用已有镜像启动
+./bin/docker-start.sh
+
+# 或使用 docker compose
+docker compose up -d
+```
+
+配置通过 `.env` 文件注入，`tasks/` 目录挂载为 volume 保存任务状态。
+
+**限制**：Docker 容器内无桌面环境，`osascript` 和 `node-notifier` 在容器中不可用。Docker 部署仅提供 REST API 任务管理能力，不产生本地桌面通知。需要通知能力请使用本地 `pnpm serve` 方式。

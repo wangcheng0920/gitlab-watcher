@@ -1,0 +1,12 @@
+services:
+  gitlab-watcher:
+    build: .
+    image: gitlab-watcher
+    container_name: gitlab-watcher
+    ports:
+      - "${PORT:-3099}:3099"
+    volumes:
+      - ./tasks:/app/tasks
+    env_file:
+      - .env
+    restart: unless-stopped
