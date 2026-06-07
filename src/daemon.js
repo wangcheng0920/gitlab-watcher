@@ -54,8 +54,8 @@ async function startDaemon({
   processModule.on('SIGINT', cleanup);
   processModule.on('SIGTERM', cleanup);
 
-  await server.listen({ port, host: '127.0.0.1' });
-  logger.info(`API server listening on http://127.0.0.1:${port}`);
+  await server.listen({ port, host: '0.0.0.0' });
+  logger.info(`API server listening on http://0.0.0.0:${port}`);
 
   let notify;
 

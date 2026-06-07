@@ -56,7 +56,7 @@ test('startDaemon throws when watcher pid points to a live process', async () =>
   }
 });
 
-test('startDaemon writes PID file and starts server on 127.0.0.1', async () => {
+test('startDaemon writes PID file and starts server on 0.0.0.0', async () => {
   const tmp = createTempDirectory();
   const tasksDir = path.join(tmp, 'tasks');
   const timers = createTimerDoubles();
@@ -105,7 +105,7 @@ test('startDaemon writes PID file and starts server on 127.0.0.1', async () => {
   }
 });
 
-test('startDaemon resolves server host to 127.0.0.1', async () => {
+test('startDaemon resolves server host to 0.0.0.0', async () => {
   const tmp = createTempDirectory();
   const tasksDir = path.join(tmp, 'tasks');
   const timers = createTimerDoubles();
@@ -137,7 +137,7 @@ test('startDaemon resolves server host to 127.0.0.1', async () => {
 
     const listenMsg = infoLogs.find((m) => m.includes('API server listening'));
     assert.ok(listenMsg);
-    assert.ok(listenMsg.includes('127.0.0.1'));
+    assert.ok(listenMsg.includes('0.0.0.0'));
 
     await signals.SIGINT();
   } finally {

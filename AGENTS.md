@@ -30,7 +30,7 @@
  7. 已支持通过独立脚本或 API 清理 `tasks/pending` 与 `tasks/processing` 中的未完结任务文件
  8. 当前 watcher 通过 `tasks/watcher.pid` 协调启动复用（CLI 和 serve 互斥）
  9. 支持两种运行模式：间隔模式（`pnpm start`，空闲退出）和常驻 serve 模式（`pnpm serve`，永不退出 + REST API）
-10. serve 模式基于 Fastify 同时提供 REST API 与 MCP Streamable HTTP 端点 (`/mcp`)，默认监听 `127.0.0.1:3099`
+10. serve 模式基于 Fastify 同时提供 REST API 与 MCP Streamable HTTP 端点 (`/mcp`)，默认监听 `0.0.0.0:3099`
 11. 入口脚本统一位于 `bin/` 目录，源码逻辑位于 `src/`，两者职责分离
 12. 已支持通过 Docker 部署常驻服务，提供 `Dockerfile`、`docker-compose.yml` 及 `bin/docker-*.sh` 脚本
 
