@@ -18,10 +18,14 @@ tasks/pending/  tasks/processing/  tasks/archive/
   │
 serve (pnpm serve)
   ├─ Fastify HTTP API (:3099)
+  │   ├─ REST 端点 (/tasks, /task, /health)
+  │   └─ MCP 端点 (/mcp, JSON-RPC 2.0)
   └─ 内置 Watcher (watch: true, 永不退出)
 ```
 
 CLI 与 serve 完全隔离，各自独立运行，互不通信。两套配置各自管理，共享 `tasks/` 文件目录。
+
+serve 模式下 `/mcp` 端点与 REST API 共存，自动启用，无需额外配置。
 
 ## 配置
 
@@ -51,6 +55,7 @@ FEISHU_WEBHOOK_SECRET=...    # 可选，飞书机器人签名校验密钥
 | `DELETE /task` | query: `?tag=release/1.2.3` | 从任意目录删除指定任务 |
 | `DELETE /tasks` | 无参数 | 清空 pending + processing 下所有任务 |
 | `GET /health` | 无参数 | 健康检查，返回 pending/processing 任务数量 |
+| `POST /mcp` | body: JSON-RPC 2.0 | MCP 协议端点，提供 5 个工具（create_task / list_tasks / get_task / delete_task / clear_tasks），详见 `docs/plans/2026-06-07-mcp-server-design.md` |
 
 说明：
 
@@ -102,6 +107,9 @@ curl http://127.0.0.1:3099/health
 | `src/server/routes/health.js` | `GET /health` |
 | `src/task/manager.js` | 任务 CRUD 统一层：createTask / listTasks / getTask / deleteTask / clearUnfinishedTasks，内部复用 task/create.js 与 task/clear.js |
 | `src/notify/feishu.js` | 飞书通知适配器：卡片消息构建 + 本地时区时间格式化 + webhook POST + 签名校验（可选） |
+| `src/mcp/index.js` | MCP 端点入口：JSON-RPC 2.0 协议处理，工具路由分发 |
+| `src/mcp/tools.js` | MCP Tool 定义：5 个工具（create_task / list_tasks / get_task / delete_task / clear_tasks）的 schema + handler |
+| `src/shared/schemas.js` | MCP Tool 共用 Zod Schema 定义（tools.js 自转换为 JSON Schema） |
 
 ### 修改文件
 

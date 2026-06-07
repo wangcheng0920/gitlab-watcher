@@ -30,7 +30,7 @@
  7. 已支持通过独立脚本或 API 清理 `tasks/pending` 与 `tasks/processing` 中的未完结任务文件
  8. 当前 watcher 通过 `tasks/watcher.pid` 协调启动复用（CLI 和 serve 互斥）
  9. 支持两种运行模式：间隔模式（`pnpm start`，空闲退出）和常驻 serve 模式（`pnpm serve`，永不退出 + REST API）
-10. serve 模式基于 Fastify 提供 REST API，默认监听 `127.0.0.1:3099`
+10. serve 模式基于 Fastify 同时提供 REST API 与 MCP Streamable HTTP 端点 (`/mcp`)，默认监听 `127.0.0.1:3099`
 11. 入口脚本统一位于 `bin/` 目录，源码逻辑位于 `src/`，两者职责分离
 12. 已支持通过 Docker 部署常驻服务，提供 `Dockerfile`、`docker-compose.yml` 及 `bin/docker-*.sh` 脚本
 
@@ -51,6 +51,9 @@ src/                          ← 纯源码（可导出模块，无 require.main
   cli.js                      ← CLI 命令处理 (runCli)
   daemon.js                   ← 常驻模式入口 (startDaemon)
   expression.js               ← 轮询间隔解析
+  mcp/
+    index.js                  ← MCP Handler 工厂 + JSON-RPC 端点
+    tools.js                  ← MCP Tool 定义（5 个 tool 的 schema + handler）
   notify/
     index.js                  ← 统一入口，导出所有适配器
     platform.js               ← 平台通知适配器 (osascript / node-notifier)
@@ -71,6 +74,7 @@ src/                          ← 纯源码（可导出模块，无 require.main
     parse-record.js           ← parseLatestRecord（去重后唯一实现）
     process.js                ← isProcessAlive + readExistingPid（去重后唯一实现）
     fs.js                     ← listMarkdownFiles + readFileIfExists（去重后唯一实现）
+    schemas.js                ← MCP Tool 共用 Zod Schema 定义
 ```
 
 ---
@@ -90,6 +94,7 @@ docker-compose.yml            ← compose 启动配置
 5. 若需求存在歧义，应先澄清再继续
 6. 除非任务明确要求，否则不要引入与当前目标无关的基础设施
 7. 每次代码变更完成后，必须同步更新受影响的文档，包括：本文件（AGENTS.md）、`docs/plans/`、`docs/rules/`、`docs/specs/` 中涉及变更模块、路径、架构或业务规则的部分。不需要等用户提醒
+8. 每次代码变更完成后，必须同步更新 `README.md`，确保功能描述、命令列表、API 表格、任务清单与实际代码一致。不需要等用户提醒
 
 ## 当前已知约束
 
@@ -108,13 +113,15 @@ docker-compose.yml            ← compose 启动配置
 13. Docker 容器内无桌面环境，通知层（`osascript` / `node-notifier`）在容器中不可用；Docker 部署仅提供 REST API 任务管理能力
 14. serve 模式下可通过 `FEISHU_WEBHOOK_URL` 环境变量切换为飞书群聊自定义机器人通知，同一时间仅一个通知适配器生效
 15. 环境变量通过 `.env` 文件管理，新增变量时需同步更新 `.env.example` 模板文件
+16. serve 模式下 `/mcp` 端点通过 JSON-RPC 2.0 协议提供 MCP Tool 调用能力，MCP 客户端可通过 POST 请求调用 5 个工具（create_task / list_tasks / get_task / delete_task / clear_tasks）
 
 ## 设计文档索引
 
 1. `docs/plans/2026-05-20-gitlab-tag-watcher-design.md`：首版技术实现设计，包含方案选择、组件划分、数据流和异常处理边界
 2. `docs/plans/2026-06-05-serve-api-design.md`：serve 模式与 REST API 设计，包含架构定位、API 接口、模块变更
-3. `docs/rules/business-rules.md`：业务规则文档，定义后续 AI 编码时必须遵守的监听范围、查询规则、通知触发规则和重复通知约束
-4. `docs/specs/watch-task-state.md`：监听任务状态规格文档，定义任务字段、状态枚举、状态流转和示例对象
+3. `docs/plans/2026-06-07-mcp-server-design.md`：MCP Server 设计，包含工具定义、JSON-RPC 协议实现、与 serve 模式的集成
+4. `docs/rules/business-rules.md`：业务规则文档，定义后续 AI 编码时必须遵守的监听范围、查询规则、通知触发规则和重复通知约束
+5. `docs/specs/watch-task-state.md`：监听任务状态规格文档，定义任务字段、状态枚举、状态流转和示例对象
 
 ## 后续维护方式
 
@@ -127,6 +134,7 @@ docker-compose.yml            ← compose 启动配置
 
 每次代码变更（包括新增、移动、删除、重构模块）完成后，必须同步更新受影响的文档：
 
+- `README.md`：功能描述、命令列表、API 表格、任务清单
 - `AGENTS.md`：代码结构图、当前范围、技术方向
 - `docs/plans/`：模块变更、文件路径、架构说明
 - `docs/rules/`：业务规则变更

@@ -11,15 +11,17 @@
 3. 通知层：CLI 模式采用"设备适配器优先 + `node-notifier` 兜底"策略；serve 模式支持通过 `FEISHU_WEBHOOK_URL` 切换为飞书自定义机器人通知
 4. macOS 当前优先使用 `osascript` 的 `display alert` 作为阻塞式提醒
 5. Node.js 依赖管理统一使用 `pnpm`
-6. 支持两种运行模式：间隔模式（`pnpm start`，空闲退出）和常驻模式（`pnpm serve`，永不退出 + REST API）
+6. 支持两种运行模式：间隔模式（`pnpm start`，空闲退出）和常驻模式（`pnpm serve`，永不退出 + REST API + MCP Server）
+7. serve 模式下 `/mcp` 端点提供 MCP (Model Context Protocol) 协议支持，AI 客户端可直接调用 5 个工具管理监听任务
 
 ## 相关文档
 
 1. `docs/plans/2026-05-20-gitlab-tag-watcher-design.md`：技术设计与架构说明
 2. `docs/plans/2026-06-05-serve-api-design.md`：serve 模式与 REST API 设计
-3. `docs/rules/business-rules.md`：业务边界与通知规则
-4. `docs/specs/watch-task-state.md`：监听任务状态与文件结构定义
-5. `AGENTS.md`：仓库协作上下文与当前约束
+3. `docs/plans/2026-06-07-mcp-server-design.md`：MCP Server 设计，含工具定义与 JSON-RPC 协议
+4. `docs/rules/business-rules.md`：业务边界与通知规则
+5. `docs/specs/watch-task-state.md`：监听任务状态与文件结构定义
+6. `AGENTS.md`：仓库协作上下文与当前约束
 
 ## 常用命令
 
@@ -52,6 +54,25 @@ REST API：
 | `DELETE /task` | query: `?tag=release/1.2.3` | 删除指定任务 |
 | `DELETE /tasks` | 无参数 | 清空 pending + processing |
 | `GET /health` | 无参数 | 健康检查 |
+| `POST /mcp` | body: JSON-RPC 2.0 | MCP 协议端点，提供 5 个工具（见下方说明） |
+
+### MCP 工具（POST /mcp）
+
+通过 MCP 协议可直接调用以下工具，与 REST API 一一对应：
+
+| 工具 | 对应 REST | 参数 | 说明 |
+|------|----------|------|------|
+| `create_task` | `POST /tasks` | `tag` (string) | 创建监听任务 |
+| `list_tasks` | `GET /tasks` | `status` (string, 可选) | 列出任务列表 |
+| `get_task` | `GET /task` | `tag` (string) | 查看单个任务详情 |
+| `delete_task` | `DELETE /task` | `tag` (string) | 删除指定任务 |
+| `clear_tasks` | `DELETE /tasks` | 无参数 | 清空 pending + processing |
+
+MCP 客户端配置示例（Claude Desktop）：
+
+```json
+{ "mcpServers": { "gitlab-watcher": { "url": "http://127.0.0.1:3099/mcp" } } }
+```
 
 ```bash
 # 示例
@@ -135,5 +156,6 @@ pnpm start
 - [x] 常驻服务模式 + REST API（`pnpm serve`）
 - [x] serve 模式飞书自定义机器人通知（卡片消息 + 本地时区）
 - [x] tag 文件名编码/解码一致性修复
+- [x] MCP Server 端点 (`/mcp`)，提供 5 个工具供 AI 客户端调用
 - [ ] Windows 系统提醒适配
 - [ ] 多项目监听支持、项目配置管理

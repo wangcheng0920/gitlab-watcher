@@ -6,6 +6,7 @@ const healthRoutes = require('./routes/health');
 
 function createApiServer({
   taskManager,
+  mcpHandler,
   logger = true,
 } = {}) {
   const app = Fastify({ logger });
@@ -15,6 +16,10 @@ function createApiServer({
   app.register(tasksRoutes, { prefix: '/tasks' });
   app.register(taskRoutes, { prefix: '/task' });
   app.register(healthRoutes, { prefix: '/health' });
+
+  if (mcpHandler) {
+    app.post('/mcp', mcpHandler);
+  }
 
   return app;
 }

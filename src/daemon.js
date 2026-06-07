@@ -6,6 +6,7 @@ require('dotenv').config({ quiet: true });
 const { createApp } = require('./app');
 const { createTaskManager } = require('./task/manager');
 const { createApiServer } = require('./server');
+const { createMcpHandler } = require('./mcp');
 const { isProcessAlive, readExistingPid } = require('./shared/process');
 const { createFeishuNotifier } = require('./notify');
 
@@ -36,7 +37,8 @@ async function startDaemon({
   await fsModule.writeFile(pidFile, `${processId}\n`, 'utf8');
 
   const taskManager = createTaskManager({ tasksDir, fsModule, pathModule });
-  const server = createApiServer({ taskManager, logger: false });
+  const mcpHandler = createMcpHandler({ taskManager });
+  const server = createApiServer({ taskManager, mcpHandler, logger: false });
 
   let watcherAbort = null;
 
