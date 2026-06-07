@@ -105,6 +105,23 @@ curl http://127.0.0.1:3099/health
 
 两种模式共享同一份 `tasks/` 目录，通过 `tasks/watcher.pid` 互斥，不能同时运行。
 
+## Docker 部署
+
+```bash
+pnpm install                       # 同步依赖（确保 pnpm-lock.yaml 最新）
+docker compose up -d               # 构建镜像 + 启动容器
+```
+
+常用管理命令：
+
+```bash
+docker compose up -d --build       # 源码有改动时，强制重建镜像
+docker compose down                # 停止并删除容器
+docker compose logs -f             # 查看实时日志
+```
+
+> **注意**：容器内无桌面环境，`osascript` / `node-notifier` 不可用。Docker 部署需配置 `FEISHU_WEBHOOK_URL` 以启用飞书通知。
+
 ## 典型使用流程
 
 ```bash
