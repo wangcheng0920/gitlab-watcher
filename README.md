@@ -12,13 +12,14 @@
 4. macOS 当前优先使用 `osascript` 的 `display alert` 作为阻塞式提醒
 5. Node.js 依赖管理统一使用 `pnpm`
 6. 支持两种运行模式：间隔模式（`pnpm start`，空闲退出）和常驻模式（`pnpm serve`，永不退出 + REST API + MCP Server）
-7. serve 模式下 `/mcp` 端点提供 MCP (Model Context Protocol) 协议支持，AI 客户端可直接调用 5 个工具管理监听任务
+7. serve 模式下 `/mcp` 端点提供基于 `@modelcontextprotocol/sdk` 的 MCP (Model Context Protocol) 协议支持，AI 客户端可直接调用 5 个工具管理监听任务
+8. 仓库内提供一套独立的 MCP SDK Fastify PoC，用于验证 `@modelcontextprotocol/sdk` 的正确接入方式和排查常见误用
 
 ## 相关文档
 
 1. `docs/plans/2026-05-20-gitlab-tag-watcher-design.md`：技术设计与架构说明
 2. `docs/plans/2026-06-05-serve-api-design.md`：serve 模式与 REST API 设计
-3. `docs/plans/2026-06-07-mcp-server-design.md`：MCP Server 设计，含工具定义与 JSON-RPC 协议
+3. `docs/plans/2026-06-07-mcp-server-design.md`：MCP Server 设计，含工具定义、SDK transport 接入与会话约束
 4. `docs/rules/business-rules.md`：业务边界与通知规则
 5. `docs/specs/watch-task-state.md`：监听任务状态与文件结构定义
 6. `AGENTS.md`：仓库协作上下文与当前约束
@@ -34,6 +35,8 @@ pnpm task:create -- release/1.2.3      # 直接创建任务并启动 watcher
 pnpm task:create -- release/1.2.3 --no-watch   # 只创建任务
 pnpm task:clear                # 清空未完结任务
 pnpm test                      # 运行测试
+pnpm test:mcp-sdk              # 运行 MCP SDK Fastify PoC 自动化校验
+pnpm test:mcp-sdk:manual       # 手动打印 MCP SDK PoC 每一步响应
 pnpm test:notify               # 手动触发本地提醒检查
 pnpm test:feishu               # 手动触发飞书通知检查（需配置 FEISHU_WEBHOOK_URL）
 ```
@@ -73,6 +76,30 @@ MCP 客户端配置示例（Claude Desktop）：
 ```json
 { "mcpServers": { "gitlab-watcher": { "url": "http://127.0.0.1:3099/mcp" } } }
 ```
+
+当前生产 `/mcp` 使用 SDK 的 Streamable HTTP transport，但为了便于自动化调用，服务端开启了 JSON response 模式。客户端仍需遵守 SDK 的会话约束：
+
+1. 初始化请求需发送 `Accept: application/json, text/event-stream`
+2. 初始化响应会返回 `mcp-session-id`
+3. 后续请求需继续携带 `mcp-session-id` 与 `mcp-protocol-version`
+
+### MCP SDK Fastify PoC
+
+仓库另提供一套隔离的 SDK 验证入口，用于验证和诊断当前生产 `/mcp` 的 SDK 接法：
+
+```bash
+pnpm test:mcp-sdk
+pnpm test:mcp-sdk:manual
+pnpm test:mcp-sdk:manual -- --stateless
+pnpm test:mcp-sdk:manual -- --no-hijack
+pnpm test:mcp-sdk:manual -- --sse
+```
+
+用途：
+
+1. 验证 `McpServer` + `StreamableHTTPServerTransport` 在 Fastify 下的最小可行接法
+2. 观察初始化后 `mcp-session-id`、`mcp-protocol-version` 与响应模式的实际行为
+3. 复现常见误用，如无状态 transport 复用或关闭 `reply.hijack()`
 
 ```bash
 # 示例
@@ -174,5 +201,6 @@ pnpm start
 - [x] serve 模式飞书自定义机器人通知（卡片消息 + 本地时区）
 - [x] tag 文件名编码/解码一致性修复
 - [x] MCP Server 端点 (`/mcp`)，提供 5 个工具供 AI 客户端调用
+- [x] MCP SDK Fastify PoC 与手动诊断脚本
 - [ ] Windows 系统提醒适配
 - [ ] 多项目监听支持、项目配置管理

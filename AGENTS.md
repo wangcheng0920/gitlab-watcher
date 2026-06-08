@@ -30,9 +30,10 @@
  7. 已支持通过独立脚本或 API 清理 `tasks/pending` 与 `tasks/processing` 中的未完结任务文件
  8. 当前 watcher 通过 `tasks/watcher.pid` 协调启动复用（CLI 和 serve 互斥）
  9. 支持两种运行模式：间隔模式（`pnpm start`，空闲退出）和常驻 serve 模式（`pnpm serve`，永不退出 + REST API）
-10. serve 模式基于 Fastify 同时提供 REST API 与 MCP Streamable HTTP 端点 (`/mcp`)，默认监听 `0.0.0.0:3099`
+10. serve 模式基于 Fastify 同时提供 REST API 与 MCP Streamable HTTP 端点 (`/mcp`)，生产实现使用 `@modelcontextprotocol/sdk` + session 化 transport，默认监听 `0.0.0.0:3099`
 11. 入口脚本统一位于 `bin/` 目录，源码逻辑位于 `src/`，两者职责分离
 12. 已支持通过 Docker 部署常驻服务，提供 `Dockerfile`、`docker-compose.yml` 及 `bin/docker-*.sh` 脚本
+13. 仓库内额外保留一套 `@modelcontextprotocol/sdk` + Fastify 的独立 PoC，用于排查 SDK transport 与请求生命周期问题，并作为当前生产 `/mcp` 实现的最小验证面
 
 ## 代码结构
 
@@ -53,6 +54,7 @@ src/                          ← 纯源码（可导出模块，无 require.main
   expression.js               ← 轮询间隔解析
   mcp/
     index.js                  ← MCP Handler 工厂 + JSON-RPC 端点
+    sdk-poc.js                ← MCP SDK Fastify 最小 PoC（隔离验证用）
     tools.js                  ← MCP Tool 定义（5 个 tool 的 schema + handler）
   notify/
     index.js                  ← 统一入口，导出所有适配器
@@ -113,13 +115,14 @@ docker-compose.yml            ← compose 启动配置
 13. Docker 容器内无桌面环境，通知层（`osascript` / `node-notifier`）在容器中不可用；Docker 部署仅提供 REST API 任务管理能力
 14. serve 模式下可通过 `FEISHU_WEBHOOK_URL` 环境变量切换为飞书群聊自定义机器人通知，同一时间仅一个通知适配器生效
 15. 环境变量通过 `.env` 文件管理，新增变量时需同步更新 `.env.example` 模板文件
-16. serve 模式下 `/mcp` 端点通过 JSON-RPC 2.0 协议提供 MCP Tool 调用能力，MCP 客户端可通过 POST 请求调用 5 个工具（create_task / list_tasks / get_task / delete_task / clear_tasks）
+16. serve 模式下 `/mcp` 端点通过 `@modelcontextprotocol/sdk` 的 Streamable HTTP transport 提供 MCP Tool 调用能力，当前启用 JSON response 模式；MCP 客户端可通过 POST 请求调用 5 个工具（create_task / list_tasks / get_task / delete_task / clear_tasks）
 
 ## 设计文档索引
 
 1. `docs/plans/2026-05-20-gitlab-tag-watcher-design.md`：首版技术实现设计，包含方案选择、组件划分、数据流和异常处理边界
 2. `docs/plans/2026-06-05-serve-api-design.md`：serve 模式与 REST API 设计，包含架构定位、API 接口、模块变更
-3. `docs/plans/2026-06-07-mcp-server-design.md`：MCP Server 设计，包含工具定义、JSON-RPC 协议实现、与 serve 模式的集成
+3. `docs/plans/2026-06-07-mcp-server-design.md`：MCP Server 设计，包含工具定义、SDK transport 接入、会话要求与 serve 模式集成
+4. `docs/plans/2026-06-08-mcp-sdk-fastify-poc.md`：MCP SDK Fastify PoC，记录最小接法、验证命令与关键排查结论
 4. `docs/rules/business-rules.md`：业务规则文档，定义后续 AI 编码时必须遵守的监听范围、查询规则、通知触发规则和重复通知约束
 5. `docs/specs/watch-task-state.md`：监听任务状态规格文档，定义任务字段、状态枚举、状态流转和示例对象
 

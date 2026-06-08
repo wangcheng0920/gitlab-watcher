@@ -18,7 +18,7 @@ MCP 端点与 REST API 共享同一 Fastify 实例，复用 `taskManager` 完成
 
 ## 协议选择
 
-采用 **Streamable HTTP** 传输方式，仅支持 POST 请求的 JSON-RPC 2.0 协议。不使用 SSE 流（无服务端推送需求），不使用 Session 管理（无状态）。
+采用 `@modelcontextprotocol/sdk` 提供的 **Streamable HTTP** 传输方式，当前仅使用 `POST /mcp` 的 JSON-RPC 2.0 调用链路。生产实现启用 JSON response 模式，便于脚本和测试直接消费响应；SSE 流未作为默认交互方式暴露。传输层使用 session 化 transport，初始化后需要通过 `mcp-session-id` 与 `mcp-protocol-version` 维持同一会话。
 
 ## MCP Tools
 
@@ -32,7 +32,7 @@ MCP 端点与 REST API 共享同一 Fastify 实例，复用 `taskManager` 完成
 | `delete_task` | `DELETE /task` | `tag` (string, required) | 删除任务 |
 | `clear_tasks` | `DELETE /tasks` | 无 | 清理未完结任务 |
 
-每个工具的 `inputSchema` 为 JSON Schema 格式，供 MCP 客户端用于参数提示和校验。
+每个工具的 `inputSchema` 以 Zod 定义为真相源，注册到 SDK 后由 SDK 自动暴露为 JSON Schema，供 MCP 客户端用于参数提示和校验。
 
 ## JSON-RPC 流程
 
@@ -41,24 +41,30 @@ Client                          Server
   │                                │
   ├─ POST /mcp                     │
   │   initialize                   │
-  │                                ├─ 200 { result: { capabilities, serverInfo } }
+  │                                ├─ 200 { result: { capabilities, serverInfo }, headers: { mcp-session-id } }
   │                                │
   ├─ POST /mcp                     │
   │   notifications/initialized    │
-  │                                ├─ 200 (空)
+  │   + mcp-session-id             │
+  │   + mcp-protocol-version       │
+  │                                ├─ 202 (空)
   │                                │
   ├─ POST /mcp                     │
   │   tools/list                   │
+  │   + mcp-session-id             │
+  │   + mcp-protocol-version       │
   │                                ├─ 200 { result: { tools: [...] } }
   │                                │
   ├─ POST /mcp                     │
   │   tools/call                   │
   │   { name, arguments }          │
+  │   + mcp-session-id             │
+  │   + mcp-protocol-version       │
   │                                ├─ 200 { result: { content: [...] } }
   │                                │
 ```
 
-服务端维护一个 `initialized` 标志位，`tools/list` 和 `tools/call` 必须在 `initialize` 之后才能调用，否则返回 `-32000 Server not initialized` 错误。
+服务端按 session 维护独立的 `McpServer + StreamableHTTPServerTransport` 实例。初始化请求创建新 session，后续 `tools/list` 和 `tools/call` 必须携带初始化阶段返回的 `mcp-session-id` 与协商后的 `mcp-protocol-version`，否则请求会被拒绝。
 
 ## 模块实现
 
@@ -66,8 +72,8 @@ Client                          Server
 
 | 文件 | 职责 |
 |------|------|
-| `src/mcp/index.js` | `createMcpHandler` 工厂函数。创建 Fastify 路由处理器，内部实现 JSON-RPC 2.0 协议解析、方法路由、工具调度 |
-| `src/mcp/tools.js` | `createToolDefinitions` 工厂函数。定义 5 个工具的 name / description / inputSchema / handler，handler 委托 `taskManager` 完成实际操作 |
+| `src/mcp/index.js` | `createMcpHandler` 工厂函数。创建 Fastify 路由处理器，按 session 管理 `McpServer + StreamableHTTPServerTransport` 实例，并把原始请求交给 SDK transport 处理 |
+| `src/mcp/tools.js` | `createToolDefinitions` 工厂函数。定义 5 个工具的 name / description / Zod `inputSchema` / handler，handler 委托 `taskManager` 完成实际操作 |
 | `src/shared/schemas.js` | MCP Tool 共用的 Zod Schema 定义（`TAG_INPUT` / `STATUS_QUERY`），作为未来扩展的参考 |
 
 ### 修改文件
@@ -91,10 +97,9 @@ Client                          Server
 | 场景 | JSON-RPC Code | 说明 |
 |------|-------------|------|
 | 请求 body 解析失败 | `-32700` | Parse error |
-| 非 JSON-RPC 2.0 | `-32600` | Invalid Request |
-| 未 initialize 就调 tools | `-32000` | Server not initialized |
-| 工具不存在 | `-32601` | Method not found |
-| 参数缺失 | `-32602` | Invalid params |
+| 缺少 `mcp-session-id` | `-32000` | 非初始化请求未带 session header |
+| Session 不存在 | `-32000` | session header 无法命中已初始化会话 |
+| SDK 参数校验失败 | `-32602` | Invalid params |
 | 业务逻辑错误 | 返回 `isError: true` 的 content | 如 tag 重复、任务不存在等 |
 
 ## 配置
@@ -113,10 +118,12 @@ Client                          Server
 
 ## 设计决策记录
 
-1. **不使用 `McpServer` / `StreamableHTTPServerTransport`**：SDK 的 Streamable HTTP Transport 在 Fastify 下集成时，除首请求外后续请求均返回空响应（`handleRequest` 未报错但无输出）。因排查未定位到确切根因，改为直接在 Fastify handler 中实现 JSON-RPC 2.0 协议，代码更可控。
+1. **生产实现改用 `McpServer` / `StreamableHTTPServerTransport`**：经过 PoC 验证，之前的“后续请求空响应”问题主要来自 transport 生命周期与请求头使用不当，而不是 SDK 与 Fastify 天生不兼容。当前生产实现按 session 维护 transport，并在 Fastify 路由中使用 `reply.hijack()` 把响应生命周期交给 SDK。
 
-2. **Zod 定义共享，自转换 JSON Schema**：`src/shared/schemas.js` 使用 Zod 定义一份共享 schema（`TAG_INPUT`、`STATUS_QUERY`）。`tools.js` 通过 `zodToJsonSchema()` 将 Zod schema 转换为 JSON Schema 供 MCP `inputSchema` 使用。Zod 作为唯一定义源，避免 JSON Schema 与校验逻辑分散维护。
+2. **启用 JSON response 模式**：虽然底层仍是 Streamable HTTP transport，但生产实现默认启用 `enableJsonResponse: true`，这样自动化测试和脚本可以直接读取 JSON-RPC 响应体，同时仍保留 SDK 的 session 和协议校验逻辑。
 
-3. **输入校验委托 taskManager**：MCP 工具不自行校验参数（如 tag 非空），委托给 `taskManager` 层的 `normalizeTagName()`，与 REST API 共享同一校验逻辑。
+3. **Zod 定义共享，由 SDK 生成工具 schema**：`src/shared/schemas.js` 继续使用 Zod 定义 `TAG_INPUT`、`STATUS_QUERY`，`tools.js` 直接把这些 Zod schema 注册到 SDK。JSON Schema 由 SDK 自动产出，避免手写转换逻辑。
 
-4. **不支持 SSE 流**：当前工具均为同步 CRUD，无服务端推送需求。未来如需支持 server push，可按需扩展。
+4. **输入校验委托 taskManager**：MCP 工具不自行校验业务语义（如 tag 合法性），委托给 `taskManager` 层的 `normalizeTagName()`，与 REST API 共享同一校验逻辑。
+
+5. **默认仍不开放 SSE 交互面**：当前工具均为同步 CRUD，无服务端推送需求。PoC 仍可切换 SSE 模式做验证，但生产默认返回 JSON 响应。
