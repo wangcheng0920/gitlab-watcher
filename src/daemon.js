@@ -67,11 +67,16 @@ async function startDaemon({
   let notify;
 
   if (processModule.env.FEISHU_WEBHOOK_URL) {
+    const atUsers = processModule.env.FEISHU_AT_USERS
+      ? processModule.env.FEISHU_AT_USERS.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+
     // serve 模式在有 webhook 配置时切换到飞书通知；
     // 没配置时仍沿用默认本地通知实现。
     notify = createFeishuNotifier({
       webhookUrl: processModule.env.FEISHU_WEBHOOK_URL,
       secret: processModule.env.FEISHU_WEBHOOK_SECRET,
+      atUsers,
     });
     logger.info('Using Feishu webhook for notifications.');
   }

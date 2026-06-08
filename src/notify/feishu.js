@@ -16,17 +16,19 @@ const STATUS_LABEL_MAP = {
 function createFeishuNotifier({
   webhookUrl,
   secret,
+  atUsers = [],
   httpClient = axios,
 } = {}) {
   if (!webhookUrl) {
     throw new Error('FEISHU_WEBHOOK_URL is required');
   }
 
+  const useTextMode = atUsers.length > 0;
+
   return async function notify(payload) {
-    const body = {
-      msg_type: 'interactive',
-      card: buildCard(payload),
-    };
+    const body = useTextMode
+      ? { msg_type: 'text', content: { text: buildTextContent(payload, atUsers) } }
+      : { msg_type: 'interactive', card: buildCard(payload) };
 
     if (secret) {
       const timestamp = String(Math.floor(Date.now() / 1000));
@@ -93,6 +95,22 @@ function formatLocalTime(isoString) {
   });
 }
 
+function buildTextContent({ tagName, status, pipelineId, finishedAt }, atUsers) {
+  const label = STATUS_LABEL_MAP[status] || status;
+  const mentionLine = atUsers.map((id) => `<at user_id="${id}"></at>`).join(' ');
+
+  return [
+    'GitLab Pipeline 通知',
+    '',
+    `Tag: ${tagName}`,
+    `Pipeline: #${pipelineId}`,
+    `状态: ${label}`,
+    `时间: ${formatLocalTime(finishedAt)}`,
+    '',
+    mentionLine,
+  ].join('\n');
+}
+
 function computeSignature(timestamp, secret) {
   const hmac = crypto.createHmac('sha256', secret);
   hmac.update(`${timestamp}\n${secret}`);
@@ -102,6 +120,7 @@ function computeSignature(timestamp, secret) {
 module.exports = {
   createFeishuNotifier,
   buildCard,
+  buildTextContent,
   computeSignature,
   formatLocalTime,
 };

@@ -8,7 +8,7 @@
 
 1. 轮询触发基于轮询间隔配置，默认每 3 分钟执行一次
 2. 当前按文件系统维护监听任务状态，不引入数据库
-3. 通知层：CLI 模式采用"设备适配器优先 + `node-notifier` 兜底"策略；serve 模式支持通过 `FEISHU_WEBHOOK_URL` 切换为飞书自定义机器人通知
+3. 通知层：CLI 模式采用"设备适配器优先 + `node-notifier` 兜底"策略；serve 模式支持通过 `FEISHU_WEBHOOK_URL` 切换为飞书自定义机器人通知，支持通过 `FEISHU_AT_USERS` 配置艾特用户
 4. macOS 当前优先使用 `osascript` 的 `display alert` 作为阻塞式提醒
 5. Node.js 依赖管理统一使用 `pnpm`
 6. 支持两种运行模式：间隔模式（`pnpm start`，空闲退出）和常驻模式（`pnpm serve`，永不退出 + REST API + MCP Server）
@@ -120,6 +120,7 @@ curl http://127.0.0.1:3099/health
 | `PORT` | 否 | serve 模式 HTTP 端口，默认 3099 |
 | `FEISHU_WEBHOOK_URL` | 否 | 飞书自定义机器人 webhook 地址，配置后 serve 模式使用飞书通知 |
 | `FEISHU_WEBHOOK_SECRET` | 否 | 飞书机器人签名校验密钥（选填） |
+| `FEISHU_AT_USERS` | 否 | 飞书通知艾特用户 open_id（逗号分隔），配置后通知切换为 text 格式 + `@` 提醒 |
 
 > 新增环境变量后需同步更新 `.env.example` 模板文件。
 
@@ -199,6 +200,7 @@ pnpm start
 - [x] 使用 `tasks/watcher.pid` 避免重复启动 watcher
 - [x] 常驻服务模式 + REST API（`pnpm serve`）
 - [x] serve 模式飞书自定义机器人通知（卡片消息 + 本地时区）
+- [x] 飞书通知 @mention 支持（text 消息模式 + `<at>` 标签）
 - [x] tag 文件名编码/解码一致性修复
 - [x] MCP Server 端点 (`/mcp`)，提供 5 个工具供 AI 客户端调用
 - [x] MCP SDK Fastify PoC 与手动诊断脚本

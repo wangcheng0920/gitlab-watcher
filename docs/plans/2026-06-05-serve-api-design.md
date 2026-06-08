@@ -35,6 +35,7 @@ serve 通过 `.env` 配置：
 PORT=3099                    # 服务端口，默认 3099
 FEISHU_WEBHOOK_URL=...       # 可选，飞书自定义机器人 webhook 地址
 FEISHU_WEBHOOK_SECRET=...    # 可选，飞书机器人签名校验密钥
+FEISHU_AT_USERS=ou_xxx,...   # 可选，飞书通知艾特用户 open_id（逗号分隔），配置后切换为 text 消息格式
 ```
 
 其余配置（`GITLAB_BASE_URL`、`GITLAB_PROJECT_ID`、`GITLAB_PRIVATE_TOKEN`、`pollIntervalMinutes`）沿用现有 `.env` 字段。
@@ -106,7 +107,7 @@ curl http://127.0.0.1:3099/health
 | `src/server/routes/task.js` | `GET /task` / `DELETE /task` |
 | `src/server/routes/health.js` | `GET /health` |
 | `src/task/manager.js` | 任务 CRUD 统一层：createTask / listTasks / getTask / deleteTask / clearUnfinishedTasks，内部复用 task/create.js 与 task/clear.js |
-| `src/notify/feishu.js` | 飞书通知适配器：卡片消息构建 + 本地时区时间格式化 + webhook POST + 签名校验（可选） |
+| `src/notify/feishu.js` | 飞书通知适配器：卡片/文本消息构建 + 本地时区时间格式化 + webhook POST + 签名校验（可选）+ @mention 支持 |
 | `src/mcp/index.js` | MCP 端点入口：JSON-RPC 2.0 协议处理，工具路由分发 |
 | `src/mcp/tools.js` | MCP Tool 定义：5 个工具（create_task / list_tasks / get_task / delete_task / clear_tasks）的 schema + handler |
 | `src/shared/schemas.js` | MCP Tool 共用 Zod Schema 定义（tools.js 自转换为 JSON Schema） |
@@ -176,4 +177,4 @@ docker compose up -d
 
 配置通过 `.env` 文件注入，`tasks/` 目录挂载为 volume 保存任务状态。
 
-**限制**：Docker 容器内无桌面环境，`osascript` 和 `node-notifier` 在容器中不可用。但可通过配置 `FEISHU_WEBHOOK_URL` 启用飞书通知，实现容器环境下的流水线完成提醒。
+**限制**：Docker 容器内无桌面环境，`osascript` 和 `node-notifier` 在容器中不可用。但可通过配置 `FEISHU_WEBHOOK_URL` 启用飞书通知，并通过 `FEISHU_AT_USERS` 配置 @mention 用户，实现容器环境下的流水线完成提醒。
