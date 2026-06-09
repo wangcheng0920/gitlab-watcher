@@ -116,7 +116,7 @@ docker-compose.yml            ← compose 启动配置
 14. serve 模式下可通过 `FEISHU_WEBHOOK_URL` 环境变量切换为飞书群聊自定义机器人通知，同一时间仅一个通知适配器生效
 15. 环境变量通过 `.env` 文件管理，新增变量时需同步更新 `.env.example` 模板文件
 16. serve 模式下 `/mcp` 端点通过 `@modelcontextprotocol/sdk` 的 Streamable HTTP transport 提供 MCP Tool 调用能力，当前启用 JSON response 模式；MCP 客户端可通过 POST 请求调用 5 个工具（create_task / list_tasks / get_task / delete_task / clear_tasks）
-17. serve 模式下可通过 `FEISHU_AT_USERS` 环境变量配置飞书通知 @mention 用户（逗号分隔 open_id），配置后通知切换为 `msg_type: text` + `<at>` 标签
+17. serve 模式下可通过 `FEISHU_AT_USERS` 环境变量配置飞书通知 @mention 用户（逗号分隔 open_id），配置后在交互卡片后追加一条 `msg_type: text` + `<at>` 标签消息以触发提醒
 
 ## 设计文档索引
 

@@ -39,7 +39,7 @@ function createFeishuNotifier({
 
     const result = response.data;
 
-    if (result.StatusCode !== 0 && result.code !== 0) {
+    if (result.StatusCode !== 0 || result.code !== 0) {
       throw new Error(
         `Feishu webhook failed: ${result.msg || result.StatusMessage || 'unknown error'}`,
       );
@@ -57,7 +57,7 @@ function createFeishuNotifier({
       });
 
       // @mention failure is non-fatal — card already delivered
-      if (response.status !== 200 || (response.data.StatusCode !== 0 && response.data.code !== 0)) {
+      if (response.status !== 200 || (response.data.StatusCode !== 0 || response.data.code !== 0)) {
         console.error(
           `@mention text notification had issues: HTTP ${response.status}`,
         );
@@ -106,22 +106,6 @@ function formatLocalTime(isoString) {
   });
 }
 
-function buildTextContent({ tagName, status, pipelineId, finishedAt }, atUsers) {
-  const label = STATUS_LABEL_MAP[status] || status;
-  const mentionLine = atUsers.map((id) => `<at user_id="${id}"></at>`).join(' ');
-
-  return [
-    'GitLab Pipeline 通知',
-    '',
-    `Tag: ${tagName}`,
-    `Pipeline: #${pipelineId}`,
-    `状态: ${label}`,
-    `时间: ${formatLocalTime(finishedAt)}`,
-    '',
-    mentionLine,
-  ].join('\n');
-}
-
 function addSignature(body, secret) {
   if (secret) {
     const timestamp = String(Math.floor(Date.now() / 1000));
@@ -139,7 +123,6 @@ function computeSignature(timestamp, secret) {
 module.exports = {
   createFeishuNotifier,
   buildCard,
-  buildTextContent,
   computeSignature,
   formatLocalTime,
 };

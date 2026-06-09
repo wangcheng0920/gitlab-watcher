@@ -7,25 +7,35 @@ const {
 } = require('./manual-feishu');
 
 test('runFeishuNotifyCheck sends the feishu notification payload and logs messages', async () => {
-  const notifications = [];
-  const logs = [];
+  const originalAtUsers = process.env.FEISHU_AT_USERS;
+  delete process.env.FEISHU_AT_USERS;
 
-  await runFeishuNotifyCheck({
-    notify(payload) {
-      notifications.push(payload);
-    },
-    logger: {
-      info(message) {
-        logs.push(message);
+  try {
+    const notifications = [];
+    const logs = [];
+
+    await runFeishuNotifyCheck({
+      notify(payload) {
+        notifications.push(payload);
       },
-    },
-  });
+      logger: {
+        info(message) {
+          logs.push(message);
+        },
+      },
+    });
 
-  assert.deepEqual(notifications, [FEISHU_NOTIFICATION]);
-  assert.deepEqual(logs, [
-    'Triggering a Feishu notification check...',
-    'Feishu notification sent successfully.',
-  ]);
+    assert.deepEqual(notifications, [FEISHU_NOTIFICATION]);
+    assert.deepEqual(logs, [
+      'Triggering a Feishu notification check...',
+      'Mode: card only (no @mentions)',
+      'Feishu notification sent successfully.',
+    ]);
+  } finally {
+    if (originalAtUsers !== undefined) {
+      process.env.FEISHU_AT_USERS = originalAtUsers;
+    }
+  }
 });
 
 test('runFeishuNotifyCheck throws when no notify is given and FEISHU_WEBHOOK_URL is not set', async () => {

@@ -140,6 +140,73 @@ test('createFeishuNotifier throws on Feishu API error response', async () => {
   );
 });
 
+test('createFeishuNotifier sends card and @mention text when atUsers is configured', async () => {
+  const requests = [];
+
+  const httpClient = {
+    async post(_url, body) {
+      requests.push(body);
+
+      return { status: 200, data: { StatusCode: 0, code: 0 } };
+    },
+  };
+
+  const notify = createFeishuNotifier({
+    webhookUrl: 'https://open.feishu.cn/test',
+    atUsers: ['ou_abc', 'ou_def'],
+    httpClient,
+  });
+
+  await notify(SAMPLE_PAYLOAD);
+
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].msg_type, 'interactive');
+  assert.equal(requests[1].msg_type, 'text');
+  assert.ok(requests[1].content.text.includes('<at user_id="ou_abc">'));
+  assert.ok(requests[1].content.text.includes('<at user_id="ou_def">'));
+});
+
+test('createFeishuNotifier does not throw when @mention text response indicates failure', async () => {
+  let callCount = 0;
+
+  const httpClient = {
+    async post(_url, _body) {
+      callCount += 1;
+
+      if (callCount === 1) {
+        return { status: 200, data: { StatusCode: 0, code: 0 } };
+      }
+
+      return { status: 500, data: {} };
+    },
+  };
+
+  const notify = createFeishuNotifier({
+    webhookUrl: 'https://open.feishu.cn/test',
+    atUsers: ['ou_abc'],
+    httpClient,
+  });
+
+  await notify(SAMPLE_PAYLOAD);
+
+  assert.equal(callCount, 2);
+});
+
+test('createFeishuNotifier throws with StatusMessage when msg field is absent', async () => {
+  const notify = createFeishuNotifier({
+    webhookUrl: 'https://open.feishu.cn/test',
+    httpClient: mockHttpClient({
+      status: 200,
+      data: { StatusCode: 10001, code: 10001, StatusMessage: 'token expired' },
+    }),
+  });
+
+  await assert.rejects(
+    () => notify(SAMPLE_PAYLOAD),
+    /Feishu webhook failed: token expired/,
+  );
+});
+
 test('createFeishuNotifier throws when webhookUrl is not provided', () => {
   assert.throws(
     () => createFeishuNotifier({}),
