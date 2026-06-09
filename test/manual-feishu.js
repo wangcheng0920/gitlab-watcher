@@ -15,6 +15,10 @@ async function runFeishuNotifyCheck({
   notify,
   logger = console,
 } = {}) {
+  const atUsers = process.env.FEISHU_AT_USERS
+    ? process.env.FEISHU_AT_USERS.split(',').map((s) => s.trim()).filter(Boolean)
+    : [];
+
   if (!notify) {
     const webhookUrl = process.env.FEISHU_WEBHOOK_URL;
 
@@ -27,10 +31,14 @@ async function runFeishuNotifyCheck({
     notify = createFeishuNotifier({
       webhookUrl,
       secret: process.env.FEISHU_WEBHOOK_SECRET,
+      atUsers,
     });
   }
 
   logger.info('Triggering a Feishu notification check...');
+  logger.info(atUsers.length > 0
+    ? `Mode: card + @mention text (${atUsers.length} user(s))`
+    : 'Mode: card only (no @mentions)');
   await notify(FEISHU_NOTIFICATION);
   logger.info('Feishu notification sent successfully.');
 }

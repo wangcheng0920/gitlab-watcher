@@ -23,20 +23,12 @@ function createFeishuNotifier({
     throw new Error('FEISHU_WEBHOOK_URL is required');
   }
 
-  const useTextMode = atUsers.length > 0;
-
   return async function notify(payload) {
-    const body = useTextMode
-      ? { msg_type: 'text', content: { text: buildTextContent(payload, atUsers) } }
-      : { msg_type: 'interactive', card: buildCard(payload) };
+    // Always send interactive card first
+    const cardBody = { msg_type: 'interactive', card: buildCard(payload) };
+    addSignature(cardBody, secret);
 
-    if (secret) {
-      const timestamp = String(Math.floor(Date.now() / 1000));
-      body.timestamp = timestamp;
-      body.sign = computeSignature(timestamp, secret);
-    }
-
-    const response = await httpClient.post(webhookUrl, body, {
+    let response = await httpClient.post(webhookUrl, cardBody, {
       headers: { 'Content-Type': 'application/json' },
       validateStatus: () => true,
     });
@@ -51,6 +43,25 @@ function createFeishuNotifier({
       throw new Error(
         `Feishu webhook failed: ${result.msg || result.StatusMessage || 'unknown error'}`,
       );
+    }
+
+    // If @mentions configured, send an additional text message to trigger alert
+    if (atUsers.length > 0) {
+      const mentionText = atUsers.map((id) => `<at user_id="${id}"></at>`).join(' ');
+      const textBody = { msg_type: 'text', content: { text: mentionText } };
+      addSignature(textBody, secret);
+
+      response = await httpClient.post(webhookUrl, textBody, {
+        headers: { 'Content-Type': 'application/json' },
+        validateStatus: () => true,
+      });
+
+      // @mention failure is non-fatal — card already delivered
+      if (response.status !== 200 || (response.data.StatusCode !== 0 && response.data.code !== 0)) {
+        console.error(
+          `@mention text notification had issues: HTTP ${response.status}`,
+        );
+      }
     }
   };
 }
@@ -109,6 +120,14 @@ function buildTextContent({ tagName, status, pipelineId, finishedAt }, atUsers) 
     '',
     mentionLine,
   ].join('\n');
+}
+
+function addSignature(body, secret) {
+  if (secret) {
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    body.timestamp = timestamp;
+    body.sign = computeSignature(timestamp, secret);
+  }
 }
 
 function computeSignature(timestamp, secret) {
